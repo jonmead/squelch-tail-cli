@@ -1,0 +1,17 @@
+{
+  "name": "squelch-tail-cli",
+  "version": "1.0.0",
+  "description": "CLI client for Squelch Tail",
+  "type": "module",
+  "main": "index.js",
+  "bin": {
+    "squelch-tail": "./index.js"
+  },
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "winston": "^3.11.0",
+    "ws": "^8.16.0"
+  }
+}
