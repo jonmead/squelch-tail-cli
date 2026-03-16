@@ -1,0 +1,31 @@
+{
+  "server": "ws://localhost:5000",
+
+  "monitor": [
+    { "system": 101 },
+    { "system": 202, "talkgroups": [1001, 1002, 1003] }
+  ],
+
+  "monitorExclude": [
+    { "system": 101, "talkgroups": [9999] }
+  ],
+
+  "interactive": false,
+  "search": false,
+  "autoPlay": false,
+
+  "audio": {
+    "noAudio": false,
+    "player": null,
+    "volume": 100
+  },
+
+  "avoidMinutes": 15,
+
+  "logLevel": "info",
+  "logFilePath": null,
+
+  "plugins": [
+    { "path": "./src/plugins/pygame-display.js", "enabled": true }
+  ]
+}

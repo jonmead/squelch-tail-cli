@@ -186,8 +186,9 @@ class MuteMdcPlugin {
         this.log.info(`MDC mute enabled (sensitivity=${this.sensitivity}, plSensitivity=${this.plSensitivity})`);
     }
 
-    processAudio(buf, audioType, _call) {
+    processAudio(buf, audioType, call) {
         if (!buf) return buf;
+        if (call?.audioType === 'digital') return buf;
         if (!audioType || audioType.includes('wav')) return this._processWav(buf);
         return this._processViaFfmpeg(buf, audioType);
     }
