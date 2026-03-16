@@ -8,7 +8,8 @@
     "squelch-tail": "./index.js"
   },
   "scripts": {
-    "start": "node index.js"
+    "start": "node index.js",
+    "eink-test": "cd pygame-display && ./activate-environment.sh && cd .. && SQUELCH_DISPLAY_TEST=1 SQUELCH_DISPLAY_MODE=eink node index.js ws://meadia:51515"
   },
   "dependencies": {
     "winston": "^3.11.0",

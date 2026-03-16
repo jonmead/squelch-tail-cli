@@ -1,0 +1,12 @@
+# Core dependencies
+pygame>=2.1.0
+
+# Required for e-ink mode (Waveshare 2.13" driver converts pygame surface → PIL)
+Pillow>=9.0.0
+
+# Optional: Waveshare e-Paper HAT driver (e-ink mode only)
+# Install on Raspberry Pi Zero:
+#   pip install waveshare-epaper
+# Or clone the official library:
+#   git clone https://github.com/waveshare/e-Paper
+#   pip install ./e-Paper/RaspberryPi_JetsonNano/python/

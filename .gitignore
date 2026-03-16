@@ -1,1 +1,3 @@
 /node_modules
+pygame-display/.venv
+pygame-display/squelch_display/__pycache__
