@@ -61,6 +61,7 @@ function parseArgs(argv) {
         avoidMinutes: null,
         interactive: false, search: false, autoPlay: false,
         plugins: [],
+        testData: false, callSecs: 3, standbySecs: 3,
         help: false, version: false,
     };
     for (let i = 2; i < argv.length; i++) {
@@ -77,6 +78,9 @@ function parseArgs(argv) {
             case '--search':                   a.search        = true; a.interactive = true; break;
             case '--auto-play':                a.autoPlay      = true; break;
             case '--plugin':                   a.plugins.push(argv[++i]); break;
+            case '--test-data':                a.testData      = true; break;
+            case '--call-secs':                a.callSecs      = parseFloat(argv[++i]); break;
+            case '--standby-secs':             a.standbySecs   = parseFloat(argv[++i]); break;
             case '-v': case '--version':       a.version       = true; break;
             case '-h': case '--help':          a.help          = true; break;
             default:

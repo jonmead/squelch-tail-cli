@@ -10,11 +10,14 @@
   "scripts": {
     "start": "node index.js",
     "setup-display": "pygame-display/ensure-venv.sh",
-    "eink-test": "npm run setup-display --silent && SQUELCH_DISPLAY_TEST=1 SQUELCH_DISPLAY_MODE=eink SQUELCH_DISPLAY_PYTHON=pygame-display/.venv-pygame-display/bin/python3 node index.js ws://meadia:51515",
-    "lcd-test": "npm run setup-display --silent && SQUELCH_DISPLAY_TEST=1 SQUELCH_DISPLAY_MODE=lcd SQUELCH_DISPLAY_PYTHON=pygame-display/.venv-pygame-display/bin/python3 node index.js ws://meadia:51515"
+    "eink-dev": "npm run setup-display --silent && SQUELCH_DISPLAY_TEST=1 SQUELCH_DISPLAY_MODE=eink SQUELCH_DISPLAY_PYTHON=pygame-display/.venv-pygame-display/bin/python3 nodemon index.js ws://meadia:51515",
+    "lcd-dev": "npm run setup-display --silent && SQUELCH_DISPLAY_TEST=1 SQUELCH_DISPLAY_MODE=lcd SQUELCH_DISPLAY_PYTHON=pygame-display/.venv-pygame-display/bin/python3 nodemon index.js ws://meadia:51515"
   },
   "dependencies": {
     "winston": "^3.11.0",
     "ws": "^8.16.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.0"
   }
 }

@@ -109,6 +109,10 @@ function mergeConfig(args) {
 
         avoidMinutes: args.avoidMinutes ?? cfg.avoidMinutes ?? 15,
 
+        testData:     args.testData    || false,
+        callSecs:     args.callSecs    ?? 3,
+        standbySecs:  args.standbySecs ?? 3,
+
         logLevel:     cfg.logLevel ?? process.env.LOG_LEVEL ?? 'info',
         logFilePath:  cfg.logFilePath ?? null,
 

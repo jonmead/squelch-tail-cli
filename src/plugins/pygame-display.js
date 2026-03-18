@@ -63,6 +63,9 @@ class PygameDisplayPlugin {
         this.ctrl = controller;
         this.log  = logger?.child?.({ label: 'pygame-display' }) ?? console;
         this._launch();
+        if (config?.testData) {
+            this._startTestLoop(config.callSecs ?? 3, config.standbySecs ?? 3);
+        }
     }
 
     onState(controller) {
@@ -146,6 +149,65 @@ class PygameDisplayPlugin {
             case 'holdSys': { const call = c.currentCall; if (call) c.setHoldSys(call.systemId);     break; }
             case 'avoidTg': { const call = c.currentCall; if (call) c.avoidTg(call);                 break; }
         }
+    }
+
+    // ── Test-data loop ────────────────────────────────────────────────────────
+
+    _startTestLoop(callSecs, standbySecs) {
+        const TEST_CALL = {
+            systemId:    1,
+            systemLabel: 'system-name',
+            talkgroupId: 1001,
+            tgLabel:     'Talkgroup Name',
+            tgName:      null, tgGroup: null, tgGroupTag: null,
+            freq:        123287500,
+            emergency:   false, encrypted: false, startTime: null,
+            units: [
+                { unitId: -1,    tag: 'Dispatch', emergency: false },
+                { unitId: 12334, tag: null,        emergency: false },
+            ],
+        };
+
+        let _call = null, _playing = false, _volume = 100, _paused = false;
+
+        const mockCtrl = {
+            get connected()   { return true; },
+            get mode()        { return 'live'; },
+            get playing()     { return _playing; },
+            get paused()      { return _paused; },
+            get elapsed()     { return 0; },
+            get queue()       { return []; },
+            get volume()      { return _volume; },
+            get lfActive()    { return true; },
+            get holdSys()     { return null; },
+            get holdTg()      { return null; },
+            get avoidList()   { return []; },
+            get currentCall() { return _call; },
+            skipCall()        { },
+            togglePause()     { _paused = !_paused; },
+            setVolume(v)      { _volume = v; },
+            setHoldTg()       { },
+            setHoldSys()      { },
+            avoidTg()         { },
+            quit()            { process.exit(0); },
+        };
+
+        this.ctrl = mockCtrl;
+
+        const showCall = () => {
+            _call = TEST_CALL; _playing = true;
+            this._sendState();
+            setTimeout(showStandby, callSecs * 1000);
+        };
+
+        const showStandby = () => {
+            _call = null; _playing = false;
+            this._sendState();
+            setTimeout(showCall, standbySecs * 1000);
+        };
+
+        // Delay first call until Python process has had time to initialise
+        setTimeout(showCall, 3000);
     }
 
     // ── State → display ───────────────────────────────────────────────────────

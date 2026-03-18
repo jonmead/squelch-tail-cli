@@ -1,0 +1,10 @@
+{
+  "watch": ["index.js", "src", "pygame-display"],
+  "ext": "js,py",
+  "ignore": [
+    "pygame-display/.venv*",
+    "pygame-display/__pycache__",
+    "node_modules"
+  ],
+  "delay": 500
+}

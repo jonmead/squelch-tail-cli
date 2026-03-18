@@ -16,7 +16,7 @@ printBanner();
 
 const args = mergeConfig(rawArgs);
 
-if (!args.url) {
+if (!args.url && !args.testData) {
     console.error('Error: server URL is required.\n\nUsage: squelch-tail <ws://host:5000> [options]\n       squelch-tail --help');
     process.exit(1);
 }
@@ -26,19 +26,38 @@ logger.level = args.logLevel || 'info';
 if (args.logFilePath) addFileTransport(args.logFilePath);
 
 logger.info(`Squelch Tail CLI v${VERSION}`);
-logger.info(`Server: ${args.url}`);
 
-const core = new Core(args);
+// ── Test-data mode ────────────────────────────────────────────────────────────
+if (args.testData) {
+    logger.info('Test-data mode: driving display with simulated call data');
 
-// Load built-in plugins
-if (args.interactive) {
-    await core.plugins.loadBuiltin(new URL('./src/plugins/tui.js', import.meta.url).pathname);
+    const { default: PygameDisplayPlugin } = await import('./src/plugins/pygame-display.js');
+    const plugin = new PygameDisplayPlugin();
+    plugin.init(
+        { testData: true, callSecs: args.callSecs, standbySecs: args.standbySecs },
+        null,
+        logger,
+    );
+
+    process.on('SIGINT',  () => { plugin.destroy(); process.exit(0); });
+    process.on('SIGTERM', () => { plugin.destroy(); process.exit(0); });
+
 } else {
-    await core.plugins.loadBuiltin(new URL('./src/plugins/daemon-json.js', import.meta.url).pathname);
-}
+    // ── Normal / live-server mode ─────────────────────────────────────────────
+    logger.info(`Server: ${args.url}`);
 
-if (args.muteMdc !== false) {
-    await core.plugins.loadBuiltin(new URL('./src/plugins/mute-mdc.js', import.meta.url).pathname);
-}
+    const core = new Core(args);
 
-await core.start();
+    // Load built-in plugins
+    if (args.interactive) {
+        await core.plugins.loadBuiltin(new URL('./src/plugins/tui.js', import.meta.url).pathname);
+    } else {
+        await core.plugins.loadBuiltin(new URL('./src/plugins/daemon-json.js', import.meta.url).pathname);
+    }
+
+    if (args.muteMdc !== false) {
+        await core.plugins.loadBuiltin(new URL('./src/plugins/mute-mdc.js', import.meta.url).pathname);
+    }
+
+    await core.start();
+}
