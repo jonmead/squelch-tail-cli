@@ -2,6 +2,9 @@
 # pygame-ce is the actively-maintained community fork with Python 3.14+ support
 pygame-ce>=2.5.0
 
+# UI widget layer
+pygame-gui>=0.6.0
+
 # Required for e-ink mode (Waveshare 2.13" driver converts pygame surface → PIL)
 Pillow>=9.0.0
 

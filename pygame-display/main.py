@@ -56,7 +56,7 @@ def main() -> None:
             test       = args.test,
         )
     else:
-        from squelch_display.eink_app import EinkApp
+        from squelch_display.eink import EinkApp
         app = EinkApp(
             width  = args.width  or 250,
             height = args.height or 122,
