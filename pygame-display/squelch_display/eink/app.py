@@ -72,8 +72,8 @@ class EinkApp:
                     if self._display_snapshot() != snap:
                         self._dirty = True
                         now_in_call = bool(self.state.call)
-                        if self._was_in_call and not now_in_call:
-                            self._full_refresh = True  # clear ghosting from large font
+                        if not self._was_in_call and now_in_call:
+                            self._full_refresh = False  # call start: always fast partial
                         self._was_in_call = now_in_call
 
             if not self.state.call:
