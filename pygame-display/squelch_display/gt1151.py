@@ -5,17 +5,19 @@ The GT1151 communicates over I2C (address 0x14 or 0x5D).
 Touch coordinates are polled at ~20 ms intervals in a background thread.
 
 Touch point record at 0x8150 (8 bytes, no track-ID prefix):
-  [0] X low byte
-  [1] X high byte
-  [2] Y low byte
-  [3] Y high byte
+  [0] GT X low byte   (GT X axis, 0-122 = display Y axis, top→bottom)
+  [1] GT X high byte
+  [2] GT Y low byte   (GT Y axis, 0-250 = display X axis, left→right)
+  [3] GT Y high byte
   [4] size low byte
   [5] size high byte
   [6] reserved
   [7] reserved
 
-Coordinates are already in landscape display space (0-250 × 0-122); no
-remapping is required.
+The GT1151 is configured in portrait mode (X_MAX=122, Y_MAX=250), so its
+axes are swapped relative to the landscape display:
+  display_x = gt_y   (GT Y 0-250 → display X 0-250)
+  display_y = gt_x   (GT X 0-122 → display Y 0-122)
 
 Usage:
     reader = GT1151Reader(i2c_bus=1, on_touch=callback)
@@ -55,8 +57,8 @@ class GT1151Reader:
     """
     Background thread that polls the GT1151 and calls on_touch(x, y) on each press.
 
-    Coordinates are delivered in display pixels, origin top-left, landscape
-    (0-250 × 0-122) — matching the 250×122 Waveshare 2.13" panel exactly.
+    Delivers display-space coordinates (landscape, origin top-left):
+      x: 0-250 (left→right), y: 0-122 (top→bottom)
     """
 
     def __init__(self, on_touch, i2c_bus: int = 1):
@@ -109,11 +111,14 @@ class GT1151Reader:
 
                     if buf_ready and n_points > 0:
                         data = _read(bus, GT_REG_DATA, n_points * 8)
-                        # First touch point — layout: [x_lo, x_hi, y_lo, y_hi, ...]
-                        x = data[0] | (data[1] << 8)
-                        y = data[2] | (data[3] << 8)
+                        # GT1151 portrait layout: [gt_x_lo, gt_x_hi, gt_y_lo, gt_y_hi, ...]
+                        # GT X (0-122) = display Y;  GT Y (0-250) = display X
+                        gt_x = data[0] | (data[1] << 8)
+                        gt_y = data[2] | (data[3] << 8)
+                        display_x = gt_y
+                        display_y = gt_x
                         if not prev_touching:
-                            self._on_touch(x, y)
+                            self._on_touch(display_x, display_y)
                         prev_touching = True
                     else:
                         prev_touching = False
