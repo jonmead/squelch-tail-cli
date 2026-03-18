@@ -14,6 +14,8 @@ def set_pulse_volume(percent: int) -> None:
             stderr=subprocess.DEVNULL,
             timeout=2,
         )
+    except FileNotFoundError:
+        pass  # pactl not installed (no PipeWire/PulseAudio)
     except Exception as e:
         print(f'[volume] pactl set failed: {e}', file=sys.stderr)
 

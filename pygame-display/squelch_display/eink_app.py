@@ -140,16 +140,16 @@ class EinkApp:
                   time.monotonic() - self._idle_frame_t > _IDLE_INTERVAL):
                 self._idle_frame    = (self._idle_frame + 1) % _IDLE_FRAMES
                 self._idle_frame_t  = time.monotonic()
-                # After many partial refreshes, do a full cleanup when idle to
-                # prevent ghosting accumulation (flash is only visible when quiet)
-                mode = _FULL if self._partial_count >= 30 else _PARTIAL
+                # Periodic full cleanup when idle: ~60 s (20 ticks × 3 s interval)
+                # prevents ghosting accumulation; flash only visible when quiet
+                mode = _FULL if self._partial_count >= 20 else _PARTIAL
                 self._render_and_push(mode)
 
             # Auto-dismiss volume menu after timeout
             if (self._vol_menu_active and
                     time.monotonic() - self._vol_menu_t > self._VOL_MENU_TIMEOUT):
                 self._vol_menu_active = False
-                self._render_and_push(_FULL)
+                self._render_and_push(_PARTIAL)
                 self._snapshot()
 
             if self.test:
@@ -271,9 +271,9 @@ class EinkApp:
         s       = self.state
         call_tg = s.call.talkgroupId if s.call else None
 
-        # Vol menu toggled → full refresh (layout completely changes)
+        # Vol menu toggled → partial (avoid flash on open/close)
         if self._vol_menu_active != self._prev_vol_menu:
-            return _FULL
+            return _PARTIAL
 
         # While menu is open, only volume changes matter
         if self._vol_menu_active:
