@@ -1,6 +1,12 @@
+# Node
 /node_modules
+
+# Python caches
+**/__pycache__
+**/*.pyc
+**/*.pyo
+**/*.pyd
+
+# Python virtual envs
 pygame-display/.venv
 pygame-display/.venv-pygame-display
-pygame-display/squelch_display/__pycache__
-pygame-display/__pycache__
-**/__pycache__
