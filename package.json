@@ -9,7 +9,9 @@
   },
   "scripts": {
     "start": "node index.js",
-    "eink-test": "cd pygame-display && ./activate-environment.sh && cd .. && SQUELCH_DISPLAY_TEST=1 SQUELCH_DISPLAY_MODE=eink node index.js ws://meadia:51515"
+    "setup-display": "pygame-display/ensure-venv.sh",
+    "eink-test": "npm run setup-display --silent && SQUELCH_DISPLAY_TEST=1 SQUELCH_DISPLAY_MODE=eink SQUELCH_DISPLAY_PYTHON=pygame-display/.venv-pygame-display/bin/python3 node index.js ws://meadia:51515",
+    "lcd-test": "npm run setup-display --silent && SQUELCH_DISPLAY_TEST=1 SQUELCH_DISPLAY_MODE=lcd SQUELCH_DISPLAY_PYTHON=pygame-display/.venv-pygame-display/bin/python3 node index.js ws://meadia:51515"
   },
   "dependencies": {
     "winston": "^3.11.0",

@@ -1,5 +1,6 @@
 # Core dependencies
-pygame>=2.1.0
+# pygame-ce is the actively-maintained community fork with Python 3.14+ support
+pygame-ce>=2.5.0
 
 # Required for e-ink mode (Waveshare 2.13" driver converts pygame surface → PIL)
 Pillow>=9.0.0
