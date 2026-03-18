@@ -31,5 +31,6 @@ VOLUME_Y         = BOTTOM_DIVIDER_Y + 1
 
 # ── Font sizes as % of their row height ──────────────────────────────────────
 STATUS_FONT_SIZE    = pct(STATUS_BAR_HEIGHT, 70)   # ≈ 12 pt
-TALKGROUP_FONT_SIZE = pct(TALKGROUP_HEIGHT,  55)   # ≈ 24 pt
+TALKGROUP_FONT_SIZE = pct(TALKGROUP_HEIGHT,  70)   # ≈ 20 pt
+CLOCK_FONT_SIZE     = pct(TALKGROUP_HEIGHT,  150)   # ≈ 26 pt  (standby clock display)
 ROW_FONT_SIZE       = pct(ROW_HEIGHT,        70)   # ≈ 12 pt

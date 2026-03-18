@@ -1,0 +1,159 @@
+{
+    "defaults": {
+        "colours": {
+            "normal_bg":     "#0d1117",
+            "dark_bg":       "#0d1117",
+            "normal_text":   "#e6edf3",
+            "selected_bg":   "#0d1117",
+            "selected_text": "#e6edf3"
+        },
+        "font": {
+            "name": "caskaydia-propo",
+            "bold": "0"
+        }
+    },
+    "label": {
+        "misc": {
+            "text_horiz_alignment":         "left",
+            "text_vert_alignment":          "center",
+            "text_horiz_alignment_padding": "0"
+        }
+    },
+
+    "UIButton": {
+        "colours": {
+            "normal_bg":      "#24292f",
+            "hovered_bg":     "#2d333a",
+            "active_bg":      "#388bfd",
+            "selected_bg":    "#388bfd",
+            "normal_border":  "#30363d",
+            "hovered_border": "#30363d",
+            "active_border":  "#388bfd",
+            "normal_text":    "#e6edf3",
+            "hovered_text":   "#e6edf3",
+            "active_text":    "#ffffff",
+            "selected_text":  "#ffffff"
+        },
+        "font": { "name": "caskaydia-propo", "bold": "1" },
+        "misc": {
+            "border_width":        "1",
+            "shape":               "rounded_rectangle",
+            "shape_corner_radius": "6"
+        }
+    },
+
+    "#title": {
+        "colours": {
+            "normal_bg":   "#161b22",
+            "normal_text": "#d29922"
+        },
+        "font": { "name": "caskaydia-propo", "bold": "1" }
+    },
+
+    "#status-live": {
+        "colours": {
+            "normal_bg":   "#161b22",
+            "normal_text": "#3fb950"
+        },
+        "font": { "name": "caskaydia-propo", "bold": "1" }
+    },
+    "#status-connected": {
+        "colours": {
+            "normal_bg":   "#161b22",
+            "normal_text": "#f0883e"
+        },
+        "font": { "name": "caskaydia-propo", "bold": "1" }
+    },
+    "#status-paused": {
+        "colours": {
+            "normal_bg":   "#161b22",
+            "normal_text": "#d29922"
+        },
+        "font": { "name": "caskaydia-propo", "bold": "1" }
+    },
+    "#status-offline": {
+        "colours": {
+            "normal_bg":   "#161b22",
+            "normal_text": "#6e7681"
+        },
+        "font": { "name": "caskaydia-propo", "bold": "1" }
+    },
+
+    "#sys-name": {
+        "colours": {
+            "normal_bg":   "#161b22",
+            "normal_text": "#6e7681"
+        }
+    },
+    "#hdr-info": {
+        "colours": {
+            "normal_bg":   "#161b22",
+            "normal_text": "#6e7681"
+        },
+        "misc": {
+            "text_horiz_alignment":         "right",
+            "text_vert_alignment":          "center",
+            "text_horiz_alignment_padding": "0"
+        }
+    },
+
+    "#talkgroup": {
+        "colours": { "normal_text": "#e6edf3" },
+        "font":    { "name": "caskaydia-propo", "bold": "1" }
+    },
+    "#tg-name": {
+        "colours": { "normal_text": "#6e7681" }
+    },
+    "#tg-group": {
+        "colours": { "normal_text": "#79c0ff" }
+    },
+    "#freq-time": {
+        "colours": { "normal_text": "#79c0ff" },
+        "font":    { "name": "caskaydia-mono", "bold": "0" }
+    },
+
+    "#units-hdr": {
+        "colours": { "normal_text": "#6e7681" },
+        "font":    { "name": "caskaydia-propo", "bold": "0" }
+    },
+    "#unit": {
+        "colours": { "normal_text": "#e6edf3" },
+        "font":    { "name": "caskaydia-propo", "bold": "0" }
+    },
+    "#unit-emergency": {
+        "colours": { "normal_text": "#f85149" },
+        "font":    { "name": "caskaydia-propo", "bold": "0" }
+    },
+
+    "#idle": {
+        "colours": { "normal_text": "#6e7681" },
+        "font":    { "name": "caskaydia-propo", "bold": "1" }
+    },
+    "#idle-paused": {
+        "colours": { "normal_text": "#d29922" },
+        "font":    { "name": "caskaydia-propo", "bold": "1" }
+    },
+
+    "#elapsed": {
+        "colours": { "normal_text": "#e6edf3" }
+    },
+    "#volume": {
+        "colours": { "normal_text": "#79c0ff" },
+        "font":    { "name": "caskaydia-propo", "bold": "1" }
+    },
+
+    "#btn-vol-dn": {
+        "colours": {
+            "normal_text":  "#79c0ff",
+            "hovered_text": "#79c0ff",
+            "active_text":  "#ffffff"
+        }
+    },
+    "#btn-vol-up": {
+        "colours": {
+            "normal_text":  "#79c0ff",
+            "hovered_text": "#79c0ff",
+            "active_text":  "#ffffff"
+        }
+    }
+}

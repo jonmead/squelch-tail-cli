@@ -46,7 +46,7 @@ def main() -> None:
     args = p.parse_args()
 
     if args.mode == 'lcd':
-        from squelch_display.lcd_app import LcdApp
+        from squelch_display.lcd import LcdApp
         app = LcdApp(
             width      = args.width  or 480,
             height     = args.height or 320,
