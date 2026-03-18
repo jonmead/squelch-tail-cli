@@ -1,6 +1,8 @@
 """E-ink display application — 250×122 Waveshare 2.13" HAT."""
 
 import datetime
+import io
+import json
 import os
 import sys
 import time
@@ -135,9 +137,10 @@ class EinkApp:
         os.environ.setdefault('SDL_AUDIODRIVER', 'dummy')
         pygame.init()
 
-        _here  = os.path.dirname(__file__)
+        _here  = os.path.dirname(os.path.abspath(__file__))
         _fonts = os.path.normpath(os.path.join(_here, '..', '..', 'fonts'))
-        _theme = os.path.join(_here, 'theme.json')
+        _r     = os.path.join(_fonts, 'Bitter-Regular.ttf')
+        _b     = os.path.join(_fonts, 'Bitter-Bold.ttf')
 
         if self.test:
             self._screen = pygame.display.set_mode((W, H))
@@ -146,18 +149,28 @@ class EinkApp:
             self._screen = None
 
         self._surf = pygame.Surface((W, H))
-        self._mgr  = pygame_gui.UIManager((W, H), _theme)
 
-        self._mgr.add_font_paths(
-            'bitter',
-            regular_path=os.path.join(_fonts, 'Bitter-Regular.ttf'),
-            bold_path=os.path.join(_fonts, 'Bitter-Bold.ttf'),
-        )
-        self._mgr.preload_fonts([
-            {'name': 'bitter', 'point_size': 12, 'style': 'regular'},
-            {'name': 'bitter', 'point_size': 12, 'style': 'bold'},
-            {'name': 'bitter', 'point_size': 26, 'style': 'bold'},
-        ])
+        # Build theme with absolute font paths so pygame-gui can find them
+        # regardless of working directory.
+        _theme = io.StringIO(json.dumps({
+            'defaults': {
+                'colours': {
+                    'normal_bg': '#ffffff', 'dark_bg': '#ffffff',
+                    'normal_text': '#000000', 'selected_bg': '#ffffff',
+                    'selected_text': '#000000',
+                },
+                'font': {'name': 'bitter', 'size': '12', 'bold': '0',
+                         'regular_path': _r, 'bold_path': _b},
+                'misc': {'text_horiz_alignment': 'left',
+                         'text_vert_alignment': 'center'},
+            },
+            '#status':    {'font': {'name': 'bitter', 'size': '12', 'bold': '1',
+                                    'regular_path': _r, 'bold_path': _b}},
+            '#appname':   {'misc': {'text_horiz_alignment': 'right'}},
+            '#talkgroup': {'font': {'name': 'bitter', 'size': '26', 'bold': '1',
+                                    'regular_path': _r, 'bold_path': _b}},
+        }))
+        self._mgr = pygame_gui.UIManager((W, H), _theme)
 
         p = 2  # padding
         self._lbl = {
