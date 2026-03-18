@@ -79,19 +79,25 @@ class AudioPlayer {
         this.stop();
         const ext    = _ext(audioType);
         this.tmpFile = path.join(os.tmpdir(), `squelch-tail-${Date.now()}${ext}`);
-        try {
-            fs.writeFileSync(this.tmpFile, buf);
-        } catch (err) {
-            log.error(`Failed to write temp file: ${err.message}`);
-            this.tmpFile = null;
-            onEnd?.();
-            return;
-        }
         this.onEndCb = onEnd;
-        const args   = this._args(this.tmpFile);
-        this.proc    = spawn(this.player, args, { stdio: 'ignore' });
-        this.proc.on('exit',  () => this._cleanup());
-        this.proc.on('error', () => this._cleanup());
+        const tmpFile = this.tmpFile;
+        fs.writeFile(tmpFile, buf, (err) => {
+            if (this.tmpFile !== tmpFile) {
+                // Cancelled by stop() or a subsequent play() — discard.
+                try { fs.unlinkSync(tmpFile); } catch (_) {}
+                return;
+            }
+            if (err) {
+                log.error(`Failed to write temp file: ${err.message}`);
+                this.tmpFile = null;
+                this._cleanup();
+                return;
+            }
+            const args = this._args(tmpFile);
+            this.proc  = spawn(this.player, args, { stdio: 'ignore' });
+            this.proc.on('exit',  () => this._cleanup());
+            this.proc.on('error', () => this._cleanup());
+        });
     }
 
     stop() {

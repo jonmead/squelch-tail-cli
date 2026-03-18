@@ -266,15 +266,17 @@ class Core {
 
     _playCall(call) {
         if (!call) { this._processQueue(); return; }
-        this.currentCall = call;
-        this.playing     = true;
-        this.elapsed     = 0;
+        this.playing = true;
+        this.elapsed = 0;
         this._startProgress();
-        this._notify();
 
         this._fetchAudio(call).then((buf) => {
             this.plugins.runAudioPipeline(buf, call.audioType, call, (processedBuf) => {
+                // Set call state and notify display at the same moment audio begins,
+                // so the screen update and audio playback are fired together.
+                this.currentCall = call;
                 this.plugins.emit('onCallStart', call);
+                this._notify();
                 this.audio.play(processedBuf, call.audioType, () => {
                     this._stopProgress();
                     this.plugins.emit('onCallEnd');
