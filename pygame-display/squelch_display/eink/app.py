@@ -326,7 +326,7 @@ class EinkApp:
             raw = pygame.image.tostring(self._surf, 'RGB')
             img = Image.frombytes('RGB', (W, H), raw).convert('1')
             buf = self._epd.getbuffer(img)
-            if self._full_refresh:
+            if self._full_refresh and not self.ipc.has_pending():
                 self._epd.init_fast()
                 self._epd.displayPartBaseImage(buf)
                 self._full_refresh = False

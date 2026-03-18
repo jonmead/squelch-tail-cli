@@ -26,6 +26,10 @@ class IpcReader:
                 break
         return msgs
 
+    def has_pending(self) -> bool:
+        """Return True if there are unread messages in the queue."""
+        return not self._q.empty()
+
     def _run(self) -> None:
         for raw in sys.stdin:
             line = raw.strip()
