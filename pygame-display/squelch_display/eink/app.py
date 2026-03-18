@@ -19,6 +19,7 @@ from .layout import (
     SYSTEM_INFO_Y, ROW_HEIGHT, UNITS_Y,
     TOP_DIVIDER_Y, BOTTOM_DIVIDER_Y, VOLUME_Y,
     STATUS_FONT_SIZE, TALKGROUP_FONT_SIZE, CLOCK_FONT_SIZE, ROW_FONT_SIZE,
+    TALKGROUP_CALL_HEIGHT, TALKGROUP_CALL_FONT_SIZE,
 )
 
 
@@ -27,11 +28,12 @@ def _build_theme(theme_path: str) -> io.StringIO:
     with open(theme_path) as f:
         theme = json.load(f)
     theme['defaults']['font']['size']       = str(ROW_FONT_SIZE)
-    theme.setdefault('#status',    {}).setdefault('font', {})['size'] = str(STATUS_FONT_SIZE)
-    theme.setdefault('#appname',   {}).setdefault('font', {})['size'] = str(STATUS_FONT_SIZE)
-    theme.setdefault('#talkgroup', {}).setdefault('font', {})['size'] = str(TALKGROUP_FONT_SIZE)
-    theme.setdefault('#clock',     {}).setdefault('font', {})['size'] = str(CLOCK_FONT_SIZE)
-    theme.setdefault('#freq',      {}).setdefault('font', {})['size'] = str(ROW_FONT_SIZE)
+    theme.setdefault('#status',         {}).setdefault('font', {})['size'] = str(STATUS_FONT_SIZE)
+    theme.setdefault('#appname',        {}).setdefault('font', {})['size'] = str(STATUS_FONT_SIZE)
+    theme.setdefault('#talkgroup',      {}).setdefault('font', {})['size'] = str(TALKGROUP_FONT_SIZE)
+    theme.setdefault('#talkgroup-call', {}).setdefault('font', {})['size'] = str(TALKGROUP_CALL_FONT_SIZE)
+    theme.setdefault('#clock',          {}).setdefault('font', {})['size'] = str(CLOCK_FONT_SIZE)
+    theme.setdefault('#freq',           {}).setdefault('font', {})['size'] = str(ROW_FONT_SIZE)
     return io.StringIO(json.dumps(theme))
 
 
@@ -170,7 +172,7 @@ class EinkApp:
             regular_path=os.path.join(_fonts, 'CaskaydiaMonoNerdFontMono-Regular.ttf'),
             bold_path=os.path.join(_fonts, 'CaskaydiaMonoNerdFontMono-Bold.ttf'),
         )
-        _sizes = sorted({ROW_FONT_SIZE, STATUS_FONT_SIZE, TALKGROUP_FONT_SIZE, CLOCK_FONT_SIZE})
+        _sizes = sorted({ROW_FONT_SIZE, STATUS_FONT_SIZE, TALKGROUP_FONT_SIZE, CLOCK_FONT_SIZE, TALKGROUP_CALL_FONT_SIZE})
         self._mgr.preload_fonts(
             [{'name': 'caskaydia-propo', 'point_size': s, 'style': 'regular'} for s in _sizes] +
             [{'name': 'caskaydia-propo', 'point_size': s, 'style': 'bold'}    for s in _sizes] +
@@ -202,6 +204,9 @@ class EinkApp:
             'tg': pygame_gui.elements.UILabel(
                 relative_rect=pygame.Rect(p, TALKGROUP_Y, W - 2 * p, TALKGROUP_HEIGHT),
                 text='', manager=self._mgr, object_id='#talkgroup'),
+            'tg_call': pygame_gui.elements.UILabel(
+                relative_rect=pygame.Rect(p, 0, W - 2 * p, TALKGROUP_CALL_HEIGHT),
+                text='', manager=self._mgr, object_id='#talkgroup-call'),
             'clock': pygame_gui.elements.UILabel(
                 relative_rect=pygame.Rect(0, TALKGROUP_Y, W, BOTTOM_DIVIDER_Y - TALKGROUP_Y),
                 text='', manager=self._mgr, object_id='#clock'),
@@ -245,11 +250,19 @@ class EinkApp:
                     seen.add(key)
                     parts.append(u.tag or str(u.unitId))
             units = ', '.join(parts)
-            self._lbl['tg'].set_text(tg)
+            self._lbl['tg'].hide()
+            self._lbl['tg_call'].set_text(tg)
+            self._lbl['tg_call'].show()
+            self._lbl['status'].hide()
+            self._lbl['appname'].hide()
             self._lbl['clock'].set_text('')
         else:
             self._last_time_str = datetime.datetime.now().strftime('%H:%M')
+            self._lbl['tg_call'].hide()
             self._lbl['tg'].set_text('')
+            self._lbl['tg'].show()
+            self._lbl['status'].show()
+            self._lbl['appname'].show()
             self._lbl['clock'].set_text(self._last_time_str)
             sys_l = freq = units = ''
 
@@ -262,7 +275,8 @@ class EinkApp:
         self._update_labels()
         self._surf.fill(WHITE)
         self._mgr.draw_ui(self._surf)
-        pygame.draw.line(self._surf, BLACK, (0, TOP_DIVIDER_Y),    (W, TOP_DIVIDER_Y))
+        if not self.state.call:
+            pygame.draw.line(self._surf, BLACK, (0, TOP_DIVIDER_Y), (W, TOP_DIVIDER_Y))
         pygame.draw.line(self._surf, BLACK, (0, BOTTOM_DIVIDER_Y), (W, BOTTOM_DIVIDER_Y))
 
         bar_h = H - VOLUME_Y
