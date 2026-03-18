@@ -20,7 +20,9 @@ fi
 # On Raspberry Pi: auto-install the waveshare_epd driver if not already available.
 # Looks for the Waveshare e-Paper library cloned from https://github.com/waveshare/e-Paper
 if grep -q "Raspberry Pi" /proc/device-tree/model 2>/dev/null; then
-    if ! "$VENV/bin/python3" -c "from waveshare_epd import epd2in13_V4" 2>/dev/null; then
+    # Use find_spec to check package existence without importing (importing
+    # initialises GPIO at module level and fails if pins are already in use).
+    if ! "$VENV/bin/python3" -c "import importlib.util, sys; sys.exit(0 if importlib.util.find_spec('waveshare_epd') else 1)" 2>/dev/null; then
         for EPAPER_BASE in "$HOME/epaper" "/home/pi/epaper" "/opt/epaper"; do
             # Waveshare repo layout changed: setup.py may be at root or in
             # RaspberryPi_JetsonNano/python/ (newer repo structure)

@@ -94,7 +94,7 @@ class PygameDisplayPlugin {
             return;
         }
 
-        if (existsSync(ensureVenv)) {
+        if (existsSync(ensureVenv) && !process.env.SQUELCH_DISPLAY_PYTHON) {
             this.log.info?.('pygame-display: setting up venv…');
             const r = spawnSync('bash', [ensureVenv], { stdio: 'inherit' });
             if (r.status !== null && r.status !== 0) {
