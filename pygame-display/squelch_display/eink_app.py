@@ -364,8 +364,8 @@ class EinkApp:
 
         st = self.f_title.render(status, True, BLACK)
         sf.blit(st, (16, cy - st.get_height() // 2))
-        title = self.f_title.render('squelch-tail', True, BLACK)
-        sf.blit(title, (W // 2 - title.get_width() // 15, cy - title.get_height() // 2))
+        title = self.f_small.render('squelch-tail', True, BLACK)
+        sf.blit(title, (W // 2 - title.get_width() // 2, cy - title.get_height() // 2))
         if s.queueLen > 0:
             q = self.f_small.render(f'Q:{s.queueLen}', True, BLACK)
             sf.blit(q, (W - q.get_width() - 3, cy - q.get_height() // 2))
@@ -460,25 +460,22 @@ class EinkApp:
         return font
 
     def _draw_call(self, sf, call, y_top, y_bot) -> None:
-        W  = self._W
-        lw = W - 6
-        y  = y_top
-
-        sys_str = _trunc(self.f_sys, call.systemLabel or f'Sys {call.systemId}', lw)
-        sf.blit(self.f_sys.render(sys_str, True, BLACK), (3, y))
-        y += self.f_sys.get_linesize() + 1
-
+        W      = self._W
+        lw     = W - 6
         freq_h = self.f_body.get_linesize()
-        tg_max_h = y_bot - y - freq_h - 2
-        tg_str = (call.tgLabel or str(call.talkgroupId))[:12]
-        f_tg = self._tg_font(tg_str, lw, tg_max_h)
-        sf.blit(f_tg.render(tg_str, True, BLACK), (3, y))
-        y += f_tg.get_linesize() + 1
 
-        parts = [p for p in [call.tgGroup, _fmt_freq(call.freq)] if p]
+        # Talkgroup — auto-sized to fill space above the info line
+        tg_max_h = y_bot - y_top - freq_h - 2
+        tg_str   = (call.tgLabel or str(call.talkgroupId))[:12]
+        f_tg     = self._tg_font(tg_str, lw, tg_max_h)
+        sf.blit(f_tg.render(tg_str, True, BLACK), (3, y_top))
+
+        # Info line: "System Name · 460.0000 MHz"
+        sys_label = call.systemLabel or f'Sys {call.systemId}'
+        parts = [p for p in [sys_label, _fmt_freq(call.freq)] if p]
         if parts:
             row = _trunc(self.f_body, '  ·  '.join(parts), lw)
-            sf.blit(self.f_body.render(row, True, BLACK), (3, y))
+            sf.blit(self.f_body.render(row, True, BLACK), (3, y_bot - freq_h))
 
     def _draw_idle(self, sf, s, y_top) -> None:
         import datetime
