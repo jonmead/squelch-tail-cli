@@ -18,7 +18,7 @@ from .layout import (
     STATUS_BAR_HEIGHT, TALKGROUP_Y, TALKGROUP_HEIGHT,
     SYSTEM_INFO_Y, ROW_HEIGHT, UNITS_Y,
     TOP_DIVIDER_Y, BOTTOM_DIVIDER_Y, VOLUME_Y,
-    STATUS_FONT_SIZE, TALKGROUP_FONT_SIZE, ROW_FONT_SIZE,
+    STATUS_FONT_SIZE, TALKGROUP_FONT_SIZE, CLOCK_FONT_SIZE, ROW_FONT_SIZE,
 )
 
 
@@ -28,7 +28,10 @@ def _build_theme(theme_path: str) -> io.StringIO:
         theme = json.load(f)
     theme['defaults']['font']['size']       = str(ROW_FONT_SIZE)
     theme.setdefault('#status',    {}).setdefault('font', {})['size'] = str(STATUS_FONT_SIZE)
+    theme.setdefault('#appname',   {}).setdefault('font', {})['size'] = str(STATUS_FONT_SIZE)
     theme.setdefault('#talkgroup', {}).setdefault('font', {})['size'] = str(TALKGROUP_FONT_SIZE)
+    theme.setdefault('#clock',     {}).setdefault('font', {})['size'] = str(CLOCK_FONT_SIZE)
+    theme.setdefault('#freq',      {}).setdefault('font', {})['size'] = str(ROW_FONT_SIZE)
     return io.StringIO(json.dumps(theme))
 
 
@@ -141,9 +144,14 @@ class EinkApp:
         _theme = os.path.join(_here, 'theme.json')
 
         if self.test:
+            info = pygame.display.Info()
+            os.environ['SDL_VIDEO_WINDOW_POS'] = f'{info.current_w - W},0'
             self._screen = pygame.display.set_mode((W, H))
             pygame.display.set_caption('Squelch Tail — e-ink')
         else:
+            # set_mode is required even in offscreen mode to establish a pixel
+            # format; without it, Surface.convert() raises "No convert format".
+            pygame.display.set_mode((W, H))
             self._screen = None
 
         self._surf = pygame.Surface((W, H))
@@ -153,36 +161,61 @@ class EinkApp:
         # the theme references them or pygame-gui falls back to system font.
         self._mgr = pygame_gui.UIManager((W, H))
         self._mgr.add_font_paths(
-            'bitter',
-            regular_path=os.path.join(_fonts, 'Bitter-Regular.ttf'),
-            bold_path=os.path.join(_fonts, 'Bitter-Bold.ttf'),
+            'caskaydia-propo',
+            regular_path=os.path.join(_fonts, 'CaskaydiaMonoNerdFontPropo-Regular.ttf'),
+            bold_path=os.path.join(_fonts, 'CaskaydiaMonoNerdFontPropo-Bold.ttf'),
         )
-        self._mgr.preload_fonts([
-            {'name': 'bitter', 'point_size': ROW_FONT_SIZE,       'style': 'regular'},
-            {'name': 'bitter', 'point_size': ROW_FONT_SIZE,       'style': 'bold'},
-            {'name': 'bitter', 'point_size': TALKGROUP_FONT_SIZE, 'style': 'bold'},
-        ])
+        self._mgr.add_font_paths(
+            'caskaydia-mono',
+            regular_path=os.path.join(_fonts, 'CaskaydiaMonoNerdFontMono-Regular.ttf'),
+            bold_path=os.path.join(_fonts, 'CaskaydiaMonoNerdFontMono-Bold.ttf'),
+        )
+        _sizes = sorted({ROW_FONT_SIZE, STATUS_FONT_SIZE, TALKGROUP_FONT_SIZE, CLOCK_FONT_SIZE})
+        self._mgr.preload_fonts(
+            [{'name': 'caskaydia-propo', 'point_size': s, 'style': 'regular'} for s in _sizes] +
+            [{'name': 'caskaydia-propo', 'point_size': s, 'style': 'bold'}    for s in _sizes] +
+            [{'name': 'caskaydia-mono',  'point_size': s, 'style': 'regular'} for s in _sizes]
+        )
         self._mgr.get_theme().load_theme(_build_theme(_theme))
+
+        # Pre-render volume hint arrows using Nerd Font icons at a large size then
+        # scale down — bypasses pygame-gui's text pipeline and produces clean shapes.
+        # \uf063 = nf-fa-arrow_down, \uf062 = nf-fa-arrow_up
+        _hint_font_large = pygame.font.Font(
+            os.path.join(_fonts, 'CaskaydiaMonoNerdFontPropo-Regular.ttf'), 64)
+        _arrow_h = (H - VOLUME_Y) - 4
+        def _make_arrow(ch):
+            raw = _hint_font_large.render(ch, True, BLACK, WHITE).convert()
+            w = max(1, int(raw.get_width() * _arrow_h / raw.get_height()))
+            return pygame.transform.smoothscale(raw, (w, _arrow_h))
+        self._glyph_vol_dn = _make_arrow('\uf063')
+        self._glyph_vol_up = _make_arrow('\uf062')
 
         p = 2  # inner padding
         self._lbl = {
             'status':  pygame_gui.elements.UILabel(
-                relative_rect=pygame.Rect(p, p, W * 2 // 3, STATUS_BAR_HEIGHT - 2 * p),
+                relative_rect=pygame.Rect(p, 0, W // 2, STATUS_BAR_HEIGHT),
                 text='', manager=self._mgr, object_id='#status'),
             'appname': pygame_gui.elements.UILabel(
-                relative_rect=pygame.Rect(W * 2 // 3, p, W // 3 - p, STATUS_BAR_HEIGHT - 2 * p),
+                relative_rect=pygame.Rect(W // 2, 0, W // 2 - p, STATUS_BAR_HEIGHT),
                 text='squelch-tail', manager=self._mgr, object_id='#appname'),
             'tg': pygame_gui.elements.UILabel(
                 relative_rect=pygame.Rect(p, TALKGROUP_Y, W - 2 * p, TALKGROUP_HEIGHT),
                 text='', manager=self._mgr, object_id='#talkgroup'),
-            'info': pygame_gui.elements.UILabel(
-                relative_rect=pygame.Rect(p, SYSTEM_INFO_Y, W - 2 * p, ROW_HEIGHT),
-                text='', manager=self._mgr, object_id='#info'),
+            'clock': pygame_gui.elements.UILabel(
+                relative_rect=pygame.Rect(0, TALKGROUP_Y, W, BOTTOM_DIVIDER_Y - TALKGROUP_Y),
+                text='', manager=self._mgr, object_id='#clock'),
+            'sys_info': pygame_gui.elements.UILabel(
+                relative_rect=pygame.Rect(p, SYSTEM_INFO_Y, W // 2 - p, ROW_HEIGHT),
+                text='', manager=self._mgr, object_id='#sys-info'),
+            'freq': pygame_gui.elements.UILabel(
+                relative_rect=pygame.Rect(W // 2, SYSTEM_INFO_Y, W // 2 - p, ROW_HEIGHT),
+                text='', manager=self._mgr, object_id='#freq'),
             'units': pygame_gui.elements.UILabel(
                 relative_rect=pygame.Rect(p, UNITS_Y, W - 2 * p, ROW_HEIGHT),
                 text='', manager=self._mgr, object_id='#units'),
             'vol': pygame_gui.elements.UILabel(
-                relative_rect=pygame.Rect(p, VOLUME_Y, W - 2 * p, H - VOLUME_Y),
+                relative_rect=pygame.Rect(W // 8, VOLUME_Y, W * 3 // 4, H - VOLUME_Y),
                 text='', manager=self._mgr, object_id='#volume'),
         }
 
@@ -205,7 +238,6 @@ class EinkApp:
             tg    = s.call.tgLabel or str(s.call.talkgroupId)
             sys_l = s.call.systemLabel or f'Sys {s.call.systemId}'
             freq  = f'{s.call.freq / 1_000_000:.4f} MHz' if s.call.freq else ''
-            info  = '  ·  '.join(x for x in [sys_l, freq] if x)
             seen, parts = set(), []
             for u in (s.call.units or []):
                 key = u.tag if u.unitId == -1 else u.unitId
@@ -213,12 +245,16 @@ class EinkApp:
                     seen.add(key)
                     parts.append(u.tag or str(u.unitId))
             units = ', '.join(parts)
+            self._lbl['tg'].set_text(tg)
+            self._lbl['clock'].set_text('')
         else:
-            self._last_time_str = tg = datetime.datetime.now().strftime('%H:%M')
-            info = units = ''
+            self._last_time_str = datetime.datetime.now().strftime('%H:%M')
+            self._lbl['tg'].set_text('')
+            self._lbl['clock'].set_text(self._last_time_str)
+            sys_l = freq = units = ''
 
-        self._lbl['tg'].set_text(tg)
-        self._lbl['info'].set_text(info)
+        self._lbl['sys_info'].set_text(sys_l)
+        self._lbl['freq'].set_text(freq)
         self._lbl['units'].set_text(units)
         self._lbl['vol'].set_text(f'VOL {self._volume}%')
 
@@ -228,6 +264,13 @@ class EinkApp:
         self._mgr.draw_ui(self._surf)
         pygame.draw.line(self._surf, BLACK, (0, TOP_DIVIDER_Y),    (W, TOP_DIVIDER_Y))
         pygame.draw.line(self._surf, BLACK, (0, BOTTOM_DIVIDER_Y), (W, BOTTOM_DIVIDER_Y))
+
+        bar_h = H - VOLUME_Y
+        dn_x = W // 16 - self._glyph_vol_dn.get_width() // 2
+        up_x = W - W // 16 - self._glyph_vol_up.get_width() // 2
+        glyph_y = VOLUME_Y + (bar_h - self._glyph_vol_dn.get_height()) // 2
+        self._surf.blit(self._glyph_vol_dn, (dn_x, glyph_y))
+        self._surf.blit(self._glyph_vol_up, (up_x, glyph_y))
 
         if self.test and self._screen:
             self._screen.blit(self._surf, (0, 0))
@@ -260,5 +303,6 @@ class EinkApp:
             set_pulse_volume(self._volume)
             send_command({'type': 'volume', 'value': self._volume})
         else:
+            self.state.paused = not self.state.paused  # optimistic: show change before CLI round-trip
             send_command({'type': 'pause'})
         self._dirty = True

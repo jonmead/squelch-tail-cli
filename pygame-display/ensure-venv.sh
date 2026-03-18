@@ -21,12 +21,19 @@ fi
 # Looks for the Waveshare e-Paper library cloned from https://github.com/waveshare/e-Paper
 if grep -q "Raspberry Pi" /proc/device-tree/model 2>/dev/null; then
     if ! "$VENV/bin/python3" -c "from waveshare_epd import epd2in13_V4" 2>/dev/null; then
-        for EPAPER_DIR in "$HOME/epaper" "/home/pi/epaper" "/opt/epaper"; do
-            if [ -f "$EPAPER_DIR/setup.py" ]; then
-                echo "[display] Installing waveshare-epd from $EPAPER_DIR..."
-                "$VENV/bin/pip" install -q --disable-pip-version-check "$EPAPER_DIR"
-                break
-            fi
+        for EPAPER_BASE in "$HOME/epaper" "/home/pi/epaper" "/opt/epaper"; do
+            # Waveshare repo layout changed: setup.py may be at root or in
+            # RaspberryPi_JetsonNano/python/ (newer repo structure)
+            for EPAPER_DIR in \
+                "$EPAPER_BASE" \
+                "$EPAPER_BASE/RaspberryPi_JetsonNano/python"
+            do
+                if [ -f "$EPAPER_DIR/setup.py" ]; then
+                    echo "[display] Installing waveshare-epd from $EPAPER_DIR..."
+                    "$VENV/bin/pip" install -q --disable-pip-version-check "$EPAPER_DIR"
+                    break 2
+                fi
+            done
         done
     fi
 fi
