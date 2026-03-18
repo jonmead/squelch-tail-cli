@@ -265,6 +265,9 @@ class EinkApp:
         self.f_italic = _font('FiraSans-BoldItalic.ttf', 17)
         self.f_small  = _font('FiraSans-Bold.ttf',       14)
 
+        # Subway Ticker — branding label and frequency readout
+        self.f_subway = _font('subway-ticker.regular.ttf', 14)
+
     # ── Change detection ──────────────────────────────────────────────────────
 
     def _classify_change(self):
@@ -364,11 +367,11 @@ class EinkApp:
 
         st = self.f_title.render(status, True, BLACK)
         sf.blit(st, (16, cy - st.get_height() // 2))
-        title = self.f_small.render('squelch-tail', True, BLACK)
-        sf.blit(title, (W // 2 - title.get_width() // 2, cy - title.get_height() // 2))
+        title = self.f_subway.render('squelch-tail', True, BLACK)
+        sf.blit(title, (W - title.get_width() - 3, cy - title.get_height() // 2))
         if s.queueLen > 0:
             q = self.f_small.render(f'Q:{s.queueLen}', True, BLACK)
-            sf.blit(q, (W - q.get_width() - 3, cy - q.get_height() // 2))
+            sf.blit(q, (W - title.get_width() - q.get_width() - 8, cy - q.get_height() // 2))
 
         pygame.draw.line(sf, BLACK, (0, BAR_H), (W, BAR_H))
 
@@ -462,7 +465,7 @@ class EinkApp:
     def _draw_call(self, sf, call, y_top, y_bot) -> None:
         W      = self._W
         lw     = W - 6
-        freq_h = self.f_body.get_linesize()
+        freq_h = self.f_subway.get_linesize()
 
         # Talkgroup — auto-sized to fill space above the info line
         tg_max_h = y_bot - y_top - freq_h - 2
@@ -474,8 +477,8 @@ class EinkApp:
         sys_label = call.systemLabel or f'Sys {call.systemId}'
         parts = [p for p in [sys_label, _fmt_freq(call.freq)] if p]
         if parts:
-            row = _trunc(self.f_body, '  ·  '.join(parts), lw)
-            sf.blit(self.f_body.render(row, True, BLACK), (3, y_bot - freq_h))
+            row = _trunc(self.f_subway, '  ·  '.join(parts), lw)
+            sf.blit(self.f_subway.render(row, True, BLACK), (3, y_bot - freq_h))
 
     def _draw_idle(self, sf, s, y_top) -> None:
         import datetime
