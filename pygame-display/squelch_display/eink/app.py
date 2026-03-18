@@ -45,7 +45,7 @@ class EinkApp:
         self._volume        = 100
         self._running       = True
         self._dirty         = True
-        self._partial_count = 0
+        self._full_refresh  = True   # first paint is always a full refresh
         self._epd           = None
         self._touch_reader  = None
         self._last_time_str = ''
@@ -66,13 +66,16 @@ class EinkApp:
                     self._running = False
                     break
                 elif msg.get('type') == 'state':
+                    snap = self._display_snapshot()
                     self.state.update(msg)
-                    self._dirty = True
+                    if self._display_snapshot() != snap:
+                        self._dirty = True
 
             if not self.state.call:
                 now = datetime.datetime.now().strftime('%H:%M')
                 if now != self._last_time_str:
                     self._dirty = True
+                    self._full_refresh = True
 
             if self.test:
                 dt = clock.tick(20) / 1000.0
@@ -132,6 +135,25 @@ class EinkApp:
             except Exception:
                 pass
         pygame.quit()
+
+    # ── Change detection ──────────────────────────────────────────────────────
+
+    def _display_snapshot(self) -> tuple:
+        """Return a tuple of every field that affects what's drawn on screen."""
+        s = self.state
+        call = s.call
+        if call:
+            return (
+                True,
+                call.talkgroupId,
+                call.systemId,
+                call.freq,
+                call.tgLabel,
+                call.systemLabel,
+                s.paused,
+                tuple((u.unitId, u.tag) for u in (call.units or [])),
+            )
+        return (False, s.paused, s.lfActive, s.connected, s.volume)
 
     # ── Pygame / GUI init ─────────────────────────────────────────────────────
 
@@ -299,13 +321,12 @@ class EinkApp:
             raw = pygame.image.tostring(self._surf, 'RGB')
             img = Image.frombytes('RGB', (W, H), raw).convert('1')
             buf = self._epd.getbuffer(img)
-            if self._partial_count >= 20:
+            if self._full_refresh:
                 self._epd.init_fast()
                 self._epd.displayPartBaseImage(buf)
-                self._partial_count = 0
+                self._full_refresh = False
             else:
                 self._epd.displayPartial(buf)
-                self._partial_count += 1
         except Exception as exc:
             print(f'[eink] Push error: {exc}', file=sys.stderr)
 

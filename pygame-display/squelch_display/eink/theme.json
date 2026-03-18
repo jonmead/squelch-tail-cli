@@ -29,6 +29,9 @@
     "#talkgroup": {
         "font": { "name": "caskaydia-propo", "bold": "1" }
     },
+    "#talkgroup-call": {
+        "font": { "name": "caskaydia-propo", "bold": "1" }
+    },
     "#clock": {
         "font": { "name": "caskaydia-propo", "bold": "1" },
         "misc": {
