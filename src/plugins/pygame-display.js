@@ -20,8 +20,8 @@
  *   SQUELCH_DISPLAY_EXTRA   extra args appended to main.py invocation
  */
 
-import { spawn }         from 'child_process';
-import { existsSync }    from 'fs';
+import { spawn, spawnSync } from 'child_process';
+import { existsSync }       from 'fs';
 import path              from 'path';
 import { fileURLToPath } from 'url';
 
@@ -45,13 +45,14 @@ class PygameDisplayPlugin {
         const home = process.env.PYGAME_DISPLAY_HOME || _DISPLAY_HOME;
         const mode = process.env.SQUELCH_DISPLAY_MODE || 'lcd';
         const test = process.env.SQUELCH_DISPLAY_TEST === '1';
+        const venvPython = path.join(home, '.venv-pygame-display', 'bin', 'python3');
         return {
             home,
             mode,
             test,
             width:   parseInt(process.env.SQUELCH_DISPLAY_WIDTH  || (mode === 'eink' ? '250' : '480'), 10),
             height:  parseInt(process.env.SQUELCH_DISPLAY_HEIGHT || (mode === 'eink' ? '122' : '320'), 10),
-            python:  process.env.SQUELCH_DISPLAY_PYTHON || 'python3',
+            python:  process.env.SQUELCH_DISPLAY_PYTHON || (existsSync(venvPython) ? venvPython : 'python3'),
             rotate:  process.env.SQUELCH_DISPLAY_ROTATE || '0',
             extra:   (process.env.SQUELCH_DISPLAY_EXTRA || '').split(' ').filter(Boolean),
         };
@@ -83,13 +84,28 @@ class PygameDisplayPlugin {
     // ── Launch ────────────────────────────────────────────────────────────────
 
     _launch() {
-        const o       = this._opts;
-        const mainPy  = path.join(o.home, 'main.py');
+        const o          = this._opts;
+        const mainPy     = path.join(o.home, 'main.py');
+        const ensureVenv = path.join(o.home, 'ensure-venv.sh');
 
         if (!existsSync(mainPy)) {
             this.log.error?.(`pygame-display: main.py not found at ${mainPy}`);
             this.log.error?.(`Set PYGAME_DISPLAY_HOME to the pygame-display directory.`);
             return;
+        }
+
+        if (existsSync(ensureVenv)) {
+            this.log.info?.('pygame-display: setting up venv…');
+            const r = spawnSync('bash', [ensureVenv], { stdio: 'inherit' });
+            if (r.status !== 0) {
+                this.log.error?.(`pygame-display: ensure-venv.sh failed (exit ${r.status})`);
+                return;
+            }
+            // Re-resolve python now that venv is guaranteed to exist
+            const venvPython = path.join(o.home, '.venv-pygame-display', 'bin', 'python3');
+            if (!process.env.SQUELCH_DISPLAY_PYTHON && existsSync(venvPython)) {
+                o.python = venvPython;
+            }
         }
 
         const args = [
