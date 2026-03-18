@@ -1,6 +1,10 @@
 {
-  "watch": ["index.js", "src", "pygame-display"],
-  "ext": "js,py",
+  "watch": [
+    "index.js",
+    "src",
+    "pygame-display"
+  ],
+  "ext": "js,py,json",
   "ignore": [
     "pygame-display/.venv*",
     "pygame-display/__pycache__",
