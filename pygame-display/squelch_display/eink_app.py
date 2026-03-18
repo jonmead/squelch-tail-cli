@@ -25,9 +25,12 @@ Layout (landscape 250×122):
 
   Left col: x=0–154 (155px)   VSep: x=155   Right col: x=156–249 (94px)
 
-Touch zones (I²C GT1151 — wire via evdev, call _on_touch(x, y)):
-  y 15–105  → play/pause toggle
-  y ≥ 105   → volume menu
+Physical GPIO buttons (gpiozero, active-low, pull-up):
+  SQUELCH_BTN_PAUSE   = BCM pin → play/pause toggle
+  SQUELCH_BTN_VOL_UP  = BCM pin → volume up (opens vol menu)
+  SQUELCH_BTN_VOL_DN  = BCM pin → volume down (opens vol menu)
+
+  Example:  SQUELCH_BTN_PAUSE=5 SQUELCH_BTN_VOL_UP=6 SQUELCH_BTN_VOL_DN=13
 """
 
 import os
@@ -102,6 +105,7 @@ class EinkApp:
         self._idle_frame_t = 0.0
 
         self._partial_count = 0   # tracks partials since last full refresh
+        self._gpio_btns     = []  # gpiozero Button objects (for cleanup)
 
     def run(self) -> None:
         self._init_hardware()
@@ -174,6 +178,41 @@ class EinkApp:
             print('[eink] waveshare_epd not installed — simulation mode', file=sys.stderr)
         except Exception as exc:
             print(f'[eink] Hardware init error: {exc}', file=sys.stderr)
+
+        if not self.test:
+            self._init_gpio_buttons()
+
+    def _init_gpio_buttons(self) -> None:
+        """Wire physical GPIO buttons via env vars (BCM pin numbers)."""
+        try:
+            from gpiozero import Button as GPIOButton
+        except ImportError:
+            print('[eink] gpiozero not available — GPIO buttons disabled', file=sys.stderr)
+            return
+
+        btn_map = {
+            'SQUELCH_BTN_PAUSE':  lambda: self._on_touch(self._W // 2, self._H // 2),
+            'SQUELCH_BTN_VOL_UP': lambda: self._on_gpio_vol(+1),
+            'SQUELCH_BTN_VOL_DN': lambda: self._on_gpio_vol(-1),
+        }
+        for env_var, callback in btn_map.items():
+            pin_str = os.environ.get(env_var)
+            if not pin_str:
+                continue
+            try:
+                pin = int(pin_str)
+                btn = GPIOButton(pin, pull_up=True, bounce_time=0.05)
+                btn.when_pressed = callback
+                self._gpio_btns.append(btn)
+                print(f'[eink] GPIO button on BCM pin {pin} → {env_var}', file=sys.stderr)
+            except Exception as exc:
+                print(f'[eink] GPIO button setup error ({env_var}={pin_str}): {exc}',
+                      file=sys.stderr)
+
+        if not self._gpio_btns:
+            print('[eink] No GPIO buttons configured '
+                  '(set SQUELCH_BTN_PAUSE / SQUELCH_BTN_VOL_UP / SQUELCH_BTN_VOL_DN)',
+                  file=sys.stderr)
 
     def _init_pygame(self) -> None:
         if not self.test:
@@ -514,6 +553,11 @@ class EinkApp:
     # ── Cleanup ───────────────────────────────────────────────────────────────
 
     def _cleanup(self) -> None:
+        for btn in self._gpio_btns:
+            try:
+                btn.close()
+            except Exception:
+                pass
         if self._epd:
             try:
                 self._epd.init()
@@ -543,6 +587,16 @@ class EinkApp:
         if y >= self._H - 17:
             self._vol_menu_active = True
             self._vol_menu_t = time.monotonic()
+
+    def _on_gpio_vol(self, direction: int) -> None:
+        """Called from gpiozero callback thread for vol up/down buttons."""
+        if not self._vol_menu_active:
+            self._vol_menu_active = True
+        self._vol_menu_t = time.monotonic()
+        if direction > 0:
+            self._vol_up()
+        else:
+            self._vol_dn()
 
     def _vol_up(self) -> None:
         self._volume = min(100, self._volume + 10)

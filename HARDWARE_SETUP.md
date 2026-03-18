@@ -192,6 +192,27 @@ These variables can be set in the shell before launching to override display beh
 | `SQUELCH_DISPLAY_EXTRA` | _(empty)_ | Extra argument string passed to the display process |
 | `SQUELCH_DISPLAY_TEST` | unset | Set to `1` to open a desktop window instead of driving hardware |
 
+### 5.6 Physical Buttons (Optional)
+
+The Waveshare 2.13" V4 HAT is a display-only device — it has no touch input. You can wire momentary push-buttons (active-low, GPIO → GND) to any free BCM GPIO pins and configure them via environment variables:
+
+| Variable | Description |
+|----------|-------------|
+| `SQUELCH_BTN_PAUSE` | BCM pin → play/pause toggle |
+| `SQUELCH_BTN_VOL_UP` | BCM pin → volume up (opens volume menu) |
+| `SQUELCH_BTN_VOL_DN` | BCM pin → volume down (opens volume menu) |
+
+Available BCM pins (not used by the e-ink HAT): 5, 6, 13, 19, 26 (and others — avoid 8, 17, 18, 24, 25).
+
+**Example** — three buttons wired to BCM 5, 6, 13:
+
+```bash
+SQUELCH_BTN_PAUSE=5 SQUELCH_BTN_VOL_UP=6 SQUELCH_BTN_VOL_DN=13 \
+  ./start-eink.sh ws://<server>:<port>
+```
+
+Or set them in a wrapper script or the systemd unit's `Environment=` lines.
+
 ---
 
 ## 6. Manual Setup — LCD (480×320 HAT)
