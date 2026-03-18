@@ -101,6 +101,8 @@ class EinkApp:
         self._idle_frame   = 0
         self._idle_frame_t = 0.0
 
+        self._partial_count = 0   # tracks partials since last full refresh
+
     def run(self) -> None:
         self._init_hardware()
         self._init_pygame()
@@ -133,7 +135,10 @@ class EinkApp:
                   time.monotonic() - self._idle_frame_t > _IDLE_INTERVAL):
                 self._idle_frame    = (self._idle_frame + 1) % _IDLE_FRAMES
                 self._idle_frame_t  = time.monotonic()
-                self._render_and_push(_PARTIAL)
+                # After many partial refreshes, do a full cleanup when idle to
+                # prevent ghosting accumulation (flash is only visible when quiet)
+                mode = _FULL if self._partial_count >= 30 else _PARTIAL
+                self._render_and_push(mode)
 
             # Auto-dismiss volume menu after timeout
             if (self._vol_menu_active and
@@ -214,7 +219,7 @@ class EinkApp:
         s       = self.state
         call_tg = s.call.talkgroupId if s.call else None
 
-        # Vol menu toggled → full refresh either way
+        # Vol menu toggled → full refresh (layout completely changes)
         if self._vol_menu_active != self._prev_vol_menu:
             return _FULL
 
@@ -222,12 +227,14 @@ class EinkApp:
         if self._vol_menu_active:
             return _PARTIAL if self._volume != self._prev_volume else None
 
-        # Normal state changes
-        if (call_tg        != self._prev_call_tg   or
-                s.connected    != self._prev_connected or
-                s.paused       != self._prev_paused    or
-                s.playing      != self._prev_playing):
-            return _FULL
+        # All content changes use partial — avoids full-refresh cascade on hardware
+        # (a full refresh blocks the loop for ~2 s while state keeps changing)
+        if (call_tg     != self._prev_call_tg   or
+                s.connected != self._prev_connected or
+                s.paused    != self._prev_paused    or
+                s.playing   != self._prev_playing):
+            return _PARTIAL
+
         return None
 
     def _snapshot(self) -> None:
@@ -259,11 +266,17 @@ class EinkApp:
             from PIL import Image
             raw = pygame.image.tostring(self._surf, 'RGB')
             img = Image.frombytes('RGB', (self._W, self._H), raw).convert('1')
+            buf = self._epd.getbuffer(img)
             if mode == _FULL:
-                self._epd.init()
-                self._epd.display(self._epd.getbuffer(img))
+                # Full refresh: init_fast + displayPartBaseImage writes to both
+                # RAM buffers (0x24 + 0x26) so subsequent partial refreshes diff
+                # against the correct base and don't invert.
+                self._epd.init_fast()
+                self._epd.displayPartBaseImage(buf)
+                self._partial_count = 0
             else:
-                self._epd.display_Partial(self._epd.getbuffer(img))
+                self._epd.displayPartial(buf)
+                self._partial_count += 1
         except Exception as exc:
             print(f'[eink] Push error: {exc}', file=sys.stderr)
 
@@ -281,7 +294,7 @@ class EinkApp:
 
         sf.fill(WHITE)
 
-        # ── Status bar (y=0–19) — inverted (black bg, white text) ──────────────
+        # ── Status bar (y=0–19) — white bg, black text, bottom border line ─────
         BAR_H = 20
         cy    = BAR_H // 2
 
@@ -294,20 +307,21 @@ class EinkApp:
         else:
             status = 'OFFLINE'
 
-        pygame.draw.rect(sf, BLACK, (0, 0, W, BAR_H))
         if not s.paused:
-            pygame.draw.circle(sf, WHITE, (7, cy), 5)
-        
-        st = self.f_title.render(status, True, WHITE)
+            pygame.draw.circle(sf, BLACK, (7, cy), 4)
+
+        st = self.f_title.render(status, True, BLACK)
         sf.blit(st, (16, cy - st.get_height() // 2))
-        title = self.f_title.render('squelch-tail', True, WHITE)
+        title = self.f_title.render('squelch-tail', True, BLACK)
         sf.blit(title, (W // 2 - title.get_width() // 15, cy - title.get_height() // 2))
         if s.queueLen > 0:
-            q = self.f_small.render(f'Q:{s.queueLen}', True, WHITE)
+            q = self.f_small.render(f'Q:{s.queueLen}', True, BLACK)
             sf.blit(q, (W - q.get_width() - 3, cy - q.get_height() // 2))
 
+        pygame.draw.line(sf, BLACK, (0, BAR_H), (W, BAR_H))
+
         # ── Content area ──────────────────────────────────────────────────────
-        content_top = BAR_H + 1
+        content_top = BAR_H + 2
         units_h     = self.f_units.get_linesize() + 2
         content_bot = H - 18 - units_h   # leave room for units row + bottom bar
 
@@ -329,15 +343,15 @@ class EinkApp:
             units_str = _trunc(self.f_units, '  ·  '.join(parts), W - 6)
             sf.blit(self.f_units.render(units_str, True, BLACK), (3, units_y))
 
-        # ── Bottom bar — inverted (black bg, white text) ──────────────────────
+        # ── Bottom bar — white bg, black text, top border line ────────────────
         bar_y = H - 17
-        pygame.draw.rect(sf, BLACK, (0, bar_y - 1, W, H - bar_y + 1))
+        pygame.draw.line(sf, BLACK, (0, bar_y - 1), (W, bar_y - 1))
 
         if s.playing:
-            el = self.f_small.render(f'{s.elapsed:.0f}s', True, WHITE)
+            el = self.f_small.render(f'{s.elapsed:.0f}s', True, BLACK)
             sf.blit(el, (3, bar_y))
 
-        vol_s = self.f_small.render(f'VOL {self._volume}%', True, WHITE)
+        vol_s = self.f_small.render(f'VOL {self._volume}%', True, BLACK)
         sf.blit(vol_s, (W // 2 - vol_s.get_width() // 2, bar_y))
 
 
