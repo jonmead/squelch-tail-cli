@@ -9,7 +9,6 @@
         },
         "font": {
             "name": "bitter",
-            "size": "12",
             "bold": "0"
         },
         "misc": {
@@ -18,12 +17,12 @@
         }
     },
     "#status": {
-        "font": { "name": "bitter", "size": "12", "bold": "1" }
+        "font": { "name": "bitter", "bold": "1" }
     },
     "#appname": {
         "misc": { "text_horiz_alignment": "right" }
     },
     "#talkgroup": {
-        "font": { "name": "bitter", "size": "26", "bold": "1" }
+        "font": { "name": "bitter", "bold": "1" }
     }
 }

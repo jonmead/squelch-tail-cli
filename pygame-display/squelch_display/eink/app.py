@@ -1,6 +1,8 @@
 """E-ink display application — 250×122 Waveshare 2.13" HAT."""
 
 import datetime
+import io
+import json
 import os
 import sys
 import time
@@ -11,23 +13,21 @@ import pygame_gui
 from ..ipc import IpcReader, send_command
 from ..state import DisplayState
 from ..volume import get_pulse_volume, set_pulse_volume
+from .layout import (
+    W, H, BLACK, WHITE,
+    BAR_H, TG_Y, TG_H, INFO_Y, ROW_H, UNIT_Y, DIV1, DIV2, VOL_Y,
+    F_BAR, F_TG, F_ROW,
+)
 
-W, H  = 250, 122
-BLACK = (0, 0, 0)
-WHITE = (255, 255, 255)
 
-# ── Layout ────────────────────────────────────────────────────────────────────
-BAR_H  = 18                  # status bar
-DIV1   = BAR_H               # first divider
-TG_Y   = DIV1 + 1            # talkgroup row
-TG_H   = 42
-INFO_Y = TG_Y  + TG_H        # system · freq row
-INFO_H = 16
-UNIT_Y = INFO_Y + INFO_H     # units row
-UNIT_H = 16
-DIV2   = UNIT_Y + UNIT_H + 2 # second divider
-VOL_Y  = DIV2 + 1            # volume row
-VOL_H  = H - VOL_Y
+def _build_theme(theme_path: str) -> io.StringIO:
+    """Load theme.json and inject computed font sizes from layout.py."""
+    with open(theme_path) as f:
+        theme = json.load(f)
+    theme['defaults']['font']['size']       = str(F_ROW)
+    theme.setdefault('#status',    {}).setdefault('font', {})['size'] = str(F_BAR)
+    theme.setdefault('#talkgroup', {}).setdefault('font', {})['size'] = str(F_TG)
+    return io.StringIO(json.dumps(theme))
 
 
 class EinkApp:
@@ -62,7 +62,6 @@ class EinkApp:
                     self.state.update(msg)
                     self._dirty = True
 
-            # Redraw on standby when the minute changes
             if not self.state.call:
                 now = datetime.datetime.now().strftime('%H:%M')
                 if now != self._last_time_str:
@@ -147,9 +146,9 @@ class EinkApp:
 
         self._surf = pygame.Surface((W, H))
 
-        # Create manager with no theme so we can register font paths first,
-        # then load our theme — otherwise pygame-gui sees 'bitter' in the
-        # theme before any paths are registered and falls back to system font.
+        # Init order: UIManager (no theme) → register font paths → preload
+        # → load theme with injected sizes.  Fonts must be registered before
+        # the theme references them or pygame-gui falls back to system font.
         self._mgr = pygame_gui.UIManager((W, H))
         self._mgr.add_font_paths(
             'bitter',
@@ -157,13 +156,13 @@ class EinkApp:
             bold_path=os.path.join(_fonts, 'Bitter-Bold.ttf'),
         )
         self._mgr.preload_fonts([
-            {'name': 'bitter', 'point_size': 12, 'style': 'regular'},
-            {'name': 'bitter', 'point_size': 12, 'style': 'bold'},
-            {'name': 'bitter', 'point_size': 26, 'style': 'bold'},
+            {'name': 'bitter', 'point_size': F_ROW, 'style': 'regular'},
+            {'name': 'bitter', 'point_size': F_ROW, 'style': 'bold'},
+            {'name': 'bitter', 'point_size': F_TG,  'style': 'bold'},
         ])
-        self._mgr.get_theme().load_theme(_theme)
+        self._mgr.get_theme().load_theme(_build_theme(_theme))
 
-        p = 2  # padding
+        p = 2  # inner padding
         self._lbl = {
             'status':  pygame_gui.elements.UILabel(
                 relative_rect=pygame.Rect(p, p, W * 2 // 3, BAR_H - 2 * p),
@@ -172,16 +171,16 @@ class EinkApp:
                 relative_rect=pygame.Rect(W * 2 // 3, p, W // 3 - p, BAR_H - 2 * p),
                 text='squelch-tail', manager=self._mgr, object_id='#appname'),
             'tg': pygame_gui.elements.UILabel(
-                relative_rect=pygame.Rect(p, TG_Y + 1, W - 2 * p, TG_H - 2),
+                relative_rect=pygame.Rect(p, TG_Y, W - 2 * p, TG_H),
                 text='', manager=self._mgr, object_id='#talkgroup'),
             'info': pygame_gui.elements.UILabel(
-                relative_rect=pygame.Rect(p, INFO_Y + 1, W - 2 * p, INFO_H - 2),
+                relative_rect=pygame.Rect(p, INFO_Y, W - 2 * p, ROW_H),
                 text='', manager=self._mgr, object_id='#info'),
             'units': pygame_gui.elements.UILabel(
-                relative_rect=pygame.Rect(p, UNIT_Y + 1, W - 2 * p, UNIT_H - 2),
+                relative_rect=pygame.Rect(p, UNIT_Y, W - 2 * p, ROW_H),
                 text='', manager=self._mgr, object_id='#units'),
             'vol': pygame_gui.elements.UILabel(
-                relative_rect=pygame.Rect(p, VOL_Y + 1, W - 2 * p, VOL_H - 2),
+                relative_rect=pygame.Rect(p, VOL_Y, W - 2 * p, H - VOL_Y),
                 text='', manager=self._mgr, object_id='#volume'),
         }
 
@@ -255,7 +254,6 @@ class EinkApp:
 
     def _on_touch(self, x: int, y: int) -> None:
         if y >= DIV2:
-            # Bottom bar: left = vol down, right = vol up
             self._volume = max(0, self._volume - 10) if x < W // 2 else min(100, self._volume + 10)
             set_pulse_volume(self._volume)
             send_command({'type': 'volume', 'value': self._volume})
