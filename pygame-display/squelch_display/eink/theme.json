@@ -1,0 +1,29 @@
+{
+    "defaults": {
+        "colours": {
+            "normal_bg":     "#ffffff",
+            "dark_bg":       "#ffffff",
+            "normal_text":   "#000000",
+            "selected_bg":   "#ffffff",
+            "selected_text": "#000000"
+        },
+        "font": {
+            "name": "bitter",
+            "size": "12",
+            "bold": "0"
+        },
+        "misc": {
+            "text_horiz_alignment": "left",
+            "text_vert_alignment":  "center"
+        }
+    },
+    "#status": {
+        "font": { "name": "bitter", "size": "12", "bold": "1" }
+    },
+    "#appname": {
+        "misc": { "text_horiz_alignment": "right" }
+    },
+    "#talkgroup": {
+        "font": { "name": "bitter", "size": "26", "bold": "1" }
+    }
+}
