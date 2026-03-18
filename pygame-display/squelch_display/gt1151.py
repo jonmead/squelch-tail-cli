@@ -5,7 +5,7 @@ The GT1151 communicates over I2C (address 0x14 or 0x5D).
 Touch coordinates are polled at ~20 ms intervals in a background thread.
 
 Touch point record at 0x8150 (8 bytes, no track-ID prefix):
-  [0] GT X low byte   (GT X axis, 0-122 = display Y axis, top→bottom)
+  [0] GT X low byte   (GT X axis, 0-122 = display Y axis, bottom→top)
   [1] GT X high byte
   [2] GT Y low byte   (GT Y axis, 0-250 = display X axis, left→right)
   [3] GT Y high byte
@@ -15,9 +15,9 @@ Touch point record at 0x8150 (8 bytes, no track-ID prefix):
   [7] reserved
 
 The GT1151 is configured in portrait mode (X_MAX=122, Y_MAX=250), so its
-axes are swapped relative to the landscape display:
-  display_x = gt_y   (GT Y 0-250 → display X 0-250)
-  display_y = gt_x   (GT X 0-122 → display Y 0-122)
+axes are swapped and the Y axis is inverted relative to the landscape display:
+  display_x = gt_y          (GT Y 0-250 → display X 0-250)
+  display_y = 121 - gt_x    (GT X 0=bottom, 122=top → display Y 0=top, 121=bottom)
 
 Usage:
     reader = GT1151Reader(i2c_bus=1, on_touch=callback)
@@ -116,7 +116,7 @@ class GT1151Reader:
                         gt_x = data[0] | (data[1] << 8)
                         gt_y = data[2] | (data[3] << 8)
                         display_x = gt_y
-                        display_y = gt_x
+                        display_y = 121 - gt_x
                         if not prev_touching:
                             self._on_touch(display_x, display_y)
                         prev_touching = True
