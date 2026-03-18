@@ -1,5 +1,6 @@
 """E-ink display application — 250×122 Waveshare 2.13" HAT."""
 
+import datetime
 import os
 import sys
 import time
@@ -40,6 +41,7 @@ class EinkApp:
         self._partial_count = 0
         self._epd           = None
         self._touch_reader  = None
+        self._last_time_str = ''
 
     # ── Entry point ───────────────────────────────────────────────────────────
 
@@ -58,6 +60,12 @@ class EinkApp:
                     break
                 elif msg.get('type') == 'state':
                     self.state.update(msg)
+                    self._dirty = True
+
+            # Redraw on standby when the minute changes
+            if not self.state.call:
+                now = datetime.datetime.now().strftime('%H:%M')
+                if now != self._last_time_str:
                     self._dirty = True
 
             if self.test:
@@ -201,7 +209,8 @@ class EinkApp:
                     parts.append(u.tag or str(u.unitId))
             units = ', '.join(parts)
         else:
-            tg = info = units = ''
+            self._last_time_str = tg = datetime.datetime.now().strftime('%H:%M')
+            info = units = ''
 
         self._lbl['tg'].set_text(tg)
         self._lbl['info'].set_text(info)
