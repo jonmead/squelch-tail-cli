@@ -4,6 +4,19 @@ GT1151 capacitive touch controller driver for Waveshare 2.13" Touch e-Paper HAT.
 The GT1151 communicates over I2C (address 0x14 or 0x5D).
 Touch coordinates are polled at ~20 ms intervals in a background thread.
 
+Touch point record at 0x8150 (8 bytes, no track-ID prefix):
+  [0] X low byte
+  [1] X high byte
+  [2] Y low byte
+  [3] Y high byte
+  [4] size low byte
+  [5] size high byte
+  [6] reserved
+  [7] reserved
+
+Coordinates are already in landscape display space (0-250 × 0-122); no
+remapping is required.
+
 Usage:
     reader = GT1151Reader(i2c_bus=1, on_touch=callback)
     reader.start()   # launches background thread
@@ -42,10 +55,8 @@ class GT1151Reader:
     """
     Background thread that polls the GT1151 and calls on_touch(x, y) on each press.
 
-    Coordinates are in display pixels (origin top-left, landscape orientation).
-    The GT1151 on the Waveshare 2.13" HAT reports raw coords in portrait
-    orientation (x=0-122, y=0-250); this class maps them to landscape
-    (display_x = raw_y, display_y = 122 - raw_x) to match the 250×122 layout.
+    Coordinates are delivered in display pixels, origin top-left, landscape
+    (0-250 × 0-122) — matching the 250×122 Waveshare 2.13" panel exactly.
     """
 
     def __init__(self, on_touch, i2c_bus: int = 1):
@@ -98,14 +109,11 @@ class GT1151Reader:
 
                     if buf_ready and n_points > 0:
                         data = _read(bus, GT_REG_DATA, n_points * 8)
-                        # First touch point only
-                        raw_x = data[1] | (data[2] << 8)
-                        raw_y = data[3] | (data[4] << 8)
-                        # Map portrait GT1151 coords → landscape display coords
-                        display_x = raw_y
-                        display_y = 122 - raw_x
+                        # First touch point — layout: [x_lo, x_hi, y_lo, y_hi, ...]
+                        x = data[0] | (data[1] << 8)
+                        y = data[2] | (data[3] << 8)
                         if not prev_touching:
-                            self._on_touch(display_x, display_y)
+                            self._on_touch(x, y)
                         prev_touching = True
                     else:
                         prev_touching = False
