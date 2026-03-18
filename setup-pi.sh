@@ -188,7 +188,7 @@ fi
 # ---------------------------------------------------------------------------
 step "Step 4: System Packages"
 
-REQUIRED_PACKAGES=(ffmpeg python3-lgpio python3-spidev python3-gpiozero git curl)
+REQUIRED_PACKAGES=(ffmpeg python3-lgpio python3-spidev python3-gpiozero git curl pipewire-alsa)
 
 echo "  Updating package index..."
 sudo apt-get update -qq

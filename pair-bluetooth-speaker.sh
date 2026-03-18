@@ -56,9 +56,9 @@ ok "Bluetooth adapter hci0 found  (${BT_ADDR})"
 step "Step 2: Audio Stack (PipeWire)"
 
 # PipeWire is the modern audio server on RPi OS Trixie.
-# pipewire-pulse provides the PulseAudio-compatible pactl/paplay interface.
+# pipewire-alsa routes ALSA applications (speaker-test, ffplay) through PipeWire.
 # libspa-0.2-bluetooth is the PipeWire Bluetooth audio plugin.
-AUDIO_PACKAGES=(pipewire pipewire-pulse wireplumber libspa-0.2-bluetooth)
+AUDIO_PACKAGES=(pipewire pipewire-pulse pipewire-alsa wireplumber libspa-0.2-bluetooth)
 NEED_INSTALL=()
 
 for pkg in "${AUDIO_PACKAGES[@]}"; do
@@ -96,17 +96,47 @@ done
 # Give PipeWire a moment to settle
 sleep 2
 
-if command -v pactl &>/dev/null && pactl info &>/dev/null; then
-    ok "PipeWire/PulseAudio interface is responsive"
+if command -v wpctl &>/dev/null && wpctl status &>/dev/null; then
+    ok "PipeWire is responsive"
 else
-    warn "pactl not responding yet — audio may need a moment to start"
+    warn "wpctl not responding yet — audio may need a moment to start"
     warn "If this fails, try logging out and back in, then re-run this script"
 fi
 
 # ---------------------------------------------------------------------------
-# Step 4: Enable Bluetooth auto-power on boot
+# Step 4: WirePlumber Bluetooth fix for headless Pi
 # ---------------------------------------------------------------------------
-step "Step 4: Bluetooth Auto-Power"
+step "Step 4: WirePlumber Headless Bluetooth Fix"
+
+# On a headless Pi (no physical display), logind reports the session as
+# "online" rather than "active". WirePlumber gates Bluetooth device
+# enumeration behind an "active" seat, so A2DP profiles never register
+# with BlueZ and connections fail with "br-connection-profile-unavailable".
+# Fix: override monitors/bluez.lua in the user's local share directory to
+# skip the seat check, so the Bluetooth monitor always starts.
+
+BLUEZ_LUA_OVERRIDE="${HOME}/.local/share/wireplumber/scripts/monitors/bluez.lua"
+BLUEZ_LUA_SYSTEM="/usr/share/wireplumber/scripts/monitors/bluez.lua"
+
+if [[ -f "$BLUEZ_LUA_OVERRIDE" ]] && grep -q "config.seat_monitoring = false" "$BLUEZ_LUA_OVERRIDE" 2>/dev/null; then
+    ok "WirePlumber headless Bluetooth fix already applied"
+elif [[ -f "$BLUEZ_LUA_SYSTEM" ]]; then
+    mkdir -p "$(dirname "$BLUEZ_LUA_OVERRIDE")"
+    cp "$BLUEZ_LUA_SYSTEM" "$BLUEZ_LUA_OVERRIDE"
+    sed -i 's/config\.seat_monitoring = Core\.test_feature.*/config.seat_monitoring = false/' "$BLUEZ_LUA_OVERRIDE"
+    ok "WirePlumber headless Bluetooth fix applied"
+    # Restart WirePlumber to pick up the new script
+    systemctl --user restart wireplumber 2>/dev/null && sleep 2 && ok "WirePlumber restarted" || \
+        warn "Could not restart WirePlumber — reboot may be required"
+else
+    warn "WirePlumber bluez.lua not found at ${BLUEZ_LUA_SYSTEM} — skipping fix"
+    warn "Bluetooth may not work on a headless Pi without this fix"
+fi
+
+# ---------------------------------------------------------------------------
+# Step 5: Enable Bluetooth auto-power on boot
+# ---------------------------------------------------------------------------
+step "Step 5: Bluetooth Auto-Power"
 
 BT_CONF="/etc/bluetooth/main.conf"
 
@@ -131,7 +161,7 @@ bluetoothctl power on >/dev/null 2>&1 && ok "Bluetooth adapter powered on" || \
 # ---------------------------------------------------------------------------
 # Step 5: Scan for devices
 # ---------------------------------------------------------------------------
-step "Step 5: Scan for Bluetooth Devices"
+step "Step 6: Scan for Bluetooth Devices"
 
 echo "  Make sure your speaker is in pairing mode, then press Enter to start scanning..."
 read -r -p ""
@@ -175,7 +205,7 @@ echo ""
 # ---------------------------------------------------------------------------
 # Step 6: Select device
 # ---------------------------------------------------------------------------
-step "Step 6: Select Your Speaker"
+step "Step 7: Select Your Speaker"
 
 SELECTED_MAC=""
 SELECTED_NAME=""
@@ -207,7 +237,7 @@ done
 # ---------------------------------------------------------------------------
 # Step 7: Pair, trust, connect
 # ---------------------------------------------------------------------------
-step "Step 7: Pair, Trust, and Connect"
+step "Step 8: Pair, Trust, and Connect"
 
 echo "  Pairing with ${SELECTED_NAME}..."
 if bluetoothctl pair "$SELECTED_MAC" 2>&1 | grep -qi "successful\|already\|yes"; then
@@ -246,53 +276,48 @@ fi
 # ---------------------------------------------------------------------------
 # Step 8: Set as default audio sink
 # ---------------------------------------------------------------------------
-step "Step 8: Default Audio Sink"
+step "Step 9: Default Audio Sink"
 
 # Give the audio subsystem a moment to register the new sink
 sleep 3
 
-BT_SINK=$(pactl list sinks short 2>/dev/null | grep -i "bluez\|blue" | awk '{print $2}' | head -1)
+# WirePlumber usually auto-selects the Bluetooth sink when it connects.
+# Verify it appeared and is the default.
+BT_SINK_LINE=$(wpctl status 2>/dev/null | grep -E '^\s+\*\s+[0-9]+\.' | head -1)
+BT_SINK_ID=$(wpctl status 2>/dev/null | grep -E 'bluez5' | head -1 | awk '{print $1}' | tr -d '.')
 
-if [[ -n "$BT_SINK" ]]; then
-    pactl set-default-sink "$BT_SINK"
-    ok "Default audio sink set to: ${BT_SINK}"
+if wpctl status 2>/dev/null | grep -q 'bluez5'; then
+    ok "Bluetooth audio sink is visible to PipeWire"
+    # If it is not already the default, set it
+    if ! wpctl status 2>/dev/null | grep -E '^\s+\*' | grep -q 'bluez5\|XinYi'; then
+        if [[ -n "$BT_SINK_ID" ]]; then
+            wpctl set-default "$BT_SINK_ID" && ok "Set as default sink (id: ${BT_SINK_ID})"
+        fi
+    else
+        ok "Bluetooth speaker is already the default sink"
+    fi
 else
     warn "Bluetooth audio sink not yet visible to PipeWire."
     echo "  This can happen if the speaker just connected. Try:"
-    echo "    pactl list sinks short          # find the bluez sink name"
-    echo "    pactl set-default-sink <name>   # set it as default"
+    echo "    wpctl status                    # check audio sinks"
+    echo "    wpctl set-default <sink-id>     # set it as default"
 fi
 
 # ---------------------------------------------------------------------------
 # Step 9: Audio test
 # ---------------------------------------------------------------------------
-step "Step 9: Audio Test"
+step "Step 10: Audio Test"
 
 echo -e "${YELLOW}  Play a short test tone through the speaker? [Y/n]:${RESET} "
 read -r PLAY_TEST
 PLAY_TEST="${PLAY_TEST:-y}"
 
 if [[ "$PLAY_TEST" =~ ^[Yy] ]]; then
-    echo "  Playing test tone..."
+    echo "  Playing test tone (2 seconds)..."
     TEST_PLAYED=false
 
-    # Try paplay with a system sound first
-    if command -v paplay &>/dev/null; then
-        SOUND_FILE=""
-        for f in /usr/share/sounds/alsa/Front_Left.wav \
-                 /usr/share/sounds/freedesktop/stereo/audio-test-signal.oga \
-                 /usr/share/sounds/freedesktop/stereo/bell.oga; do
-            [[ -f "$f" ]] && SOUND_FILE="$f" && break
-        done
-
-        if [[ -n "$SOUND_FILE" ]]; then
-            paplay "$SOUND_FILE" 2>/dev/null && TEST_PLAYED=true
-        fi
-    fi
-
-    # Fall back to speaker-test
-    if [[ "$TEST_PLAYED" == false ]] && command -v speaker-test &>/dev/null; then
-        timeout 3 speaker-test -t sine -f 880 -l 1 2>/dev/null && TEST_PLAYED=true || true
+    if command -v speaker-test &>/dev/null; then
+        timeout 4 speaker-test -c 2 -t wav -l 1 2>/dev/null && TEST_PLAYED=true || true
     fi
 
     if [[ "$TEST_PLAYED" == true ]]; then
@@ -306,11 +331,11 @@ if [[ "$PLAY_TEST" =~ ^[Yy] ]]; then
             warn "Audio not heard. Check speaker volume and connection."
             echo "  Diagnostics:"
             echo "    bluetoothctl info ${SELECTED_MAC}"
-            echo "    pactl list sinks short"
+            echo "    wpctl status"
         fi
     else
-        warn "No test sound file found — skipping audio playback test"
-        echo "  Test manually: paplay /path/to/file.wav"
+        warn "speaker-test not found — skipping audio test"
+        echo "  Test manually: speaker-test -c 2 -t wav"
     fi
 fi
 
@@ -332,7 +357,8 @@ echo ""
 echo "  Useful commands:"
 echo "    bluetoothctl info ${SELECTED_MAC}     # check connection status"
 echo "    bluetoothctl connect ${SELECTED_MAC}  # reconnect manually"
-echo "    pactl list sinks short                # list audio sinks"
-echo "    pactl set-default-sink <sink-name>    # change default output"
+echo "    wpctl status                          # list audio sinks and devices"
+echo "    wpctl set-default <sink-id>           # change default output"
+echo "    speaker-test -c 2 -t wav              # play test audio"
 echo ""
 ok "Done."
