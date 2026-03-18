@@ -31,10 +31,10 @@ import time
 
 
 GT1151_ADDR    = 0x14
-GT_REG_PID     = 0x8140   # 4-byte product ID
-GT_REG_STATUS  = 0x814E   # buffer-ready flag + touch count
-GT_REG_DATA    = 0x8150   # touch point records (8 bytes each, up to 5 points)
-_POLL_INTERVAL = 0.02     # 50 Hz polling
+GT_REGISTER_PRODUCT_ID     = 0x8140   # 4-byte product ID
+GT_REGISTER_STATUS  = 0x814E   # buffer-ready flag + touch count
+GT_REGISTER_TOUCH_DATA    = 0x8150   # touch point records (8 bytes each, up to 5 points)
+_TOUCH_POLL_INTERVAL = 0.02     # 50 Hz polling
 
 
 def _read(bus, reg: int, length: int) -> bytes:
@@ -77,7 +77,7 @@ class GT1151Reader:
 
         try:
             bus = SMBus(self._i2c_bus)
-            pid = _read(bus, GT_REG_PID, 4)
+            pid = _read(bus, GT_REGISTER_PRODUCT_ID, 4)
             print(f'[touch] GT1151 found on I2C bus {self._i2c_bus}, '
                   f'PID={pid.decode("ascii", errors="replace")}', file=sys.stderr)
         except Exception as exc:
@@ -105,12 +105,12 @@ class GT1151Reader:
         try:
             while not self._stop_flag.is_set():
                 try:
-                    status = _read(bus, GT_REG_STATUS, 1)[0]
+                    status = _read(bus, GT_REGISTER_STATUS, 1)[0]
                     buf_ready = bool(status & 0x80)
                     n_points  = status & 0x0F
 
                     if buf_ready and n_points > 0:
-                        data = _read(bus, GT_REG_DATA, n_points * 8)
+                        data = _read(bus, GT_REGISTER_TOUCH_DATA, n_points * 8)
                         # GT1151 portrait layout: [gt_x_lo, gt_x_hi, gt_y_lo, gt_y_hi, ...]
                         # GT X (0-122) = display Y;  GT Y (0-250) = display X
                         gt_x = data[0] | (data[1] << 8)
@@ -125,13 +125,13 @@ class GT1151Reader:
 
                     # Always clear buffer-ready flag after reading
                     if buf_ready:
-                        _write(bus, GT_REG_STATUS, [0])
+                        _write(bus, GT_REGISTER_STATUS, [0])
 
                 except Exception as exc:
                     print(f'[touch] poll error: {exc}', file=sys.stderr)
                     time.sleep(0.5)   # back off on error
 
-                time.sleep(_POLL_INTERVAL)
+                time.sleep(_TOUCH_POLL_INTERVAL)
         finally:
             try:
                 bus.close()

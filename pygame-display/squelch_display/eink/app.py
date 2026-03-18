@@ -15,8 +15,10 @@ from ..state import DisplayState
 from ..volume import get_pulse_volume, set_pulse_volume
 from .layout import (
     W, H, BLACK, WHITE,
-    BAR_H, TG_Y, TG_H, INFO_Y, ROW_H, UNIT_Y, DIV1, DIV2, VOL_Y,
-    F_BAR, F_TG, F_ROW,
+    STATUS_BAR_HEIGHT, TALKGROUP_Y, TALKGROUP_HEIGHT,
+    SYSTEM_INFO_Y, ROW_HEIGHT, UNITS_Y,
+    TOP_DIVIDER_Y, BOTTOM_DIVIDER_Y, VOLUME_Y,
+    STATUS_FONT_SIZE, TALKGROUP_FONT_SIZE, ROW_FONT_SIZE,
 )
 
 
@@ -24,9 +26,9 @@ def _build_theme(theme_path: str) -> io.StringIO:
     """Load theme.json and inject computed font sizes from layout.py."""
     with open(theme_path) as f:
         theme = json.load(f)
-    theme['defaults']['font']['size']       = str(F_ROW)
-    theme.setdefault('#status',    {}).setdefault('font', {})['size'] = str(F_BAR)
-    theme.setdefault('#talkgroup', {}).setdefault('font', {})['size'] = str(F_TG)
+    theme['defaults']['font']['size']       = str(ROW_FONT_SIZE)
+    theme.setdefault('#status',    {}).setdefault('font', {})['size'] = str(STATUS_FONT_SIZE)
+    theme.setdefault('#talkgroup', {}).setdefault('font', {})['size'] = str(TALKGROUP_FONT_SIZE)
     return io.StringIO(json.dumps(theme))
 
 
@@ -156,31 +158,31 @@ class EinkApp:
             bold_path=os.path.join(_fonts, 'Bitter-Bold.ttf'),
         )
         self._mgr.preload_fonts([
-            {'name': 'bitter', 'point_size': F_ROW, 'style': 'regular'},
-            {'name': 'bitter', 'point_size': F_ROW, 'style': 'bold'},
-            {'name': 'bitter', 'point_size': F_TG,  'style': 'bold'},
+            {'name': 'bitter', 'point_size': ROW_FONT_SIZE,       'style': 'regular'},
+            {'name': 'bitter', 'point_size': ROW_FONT_SIZE,       'style': 'bold'},
+            {'name': 'bitter', 'point_size': TALKGROUP_FONT_SIZE, 'style': 'bold'},
         ])
         self._mgr.get_theme().load_theme(_build_theme(_theme))
 
         p = 2  # inner padding
         self._lbl = {
             'status':  pygame_gui.elements.UILabel(
-                relative_rect=pygame.Rect(p, p, W * 2 // 3, BAR_H - 2 * p),
+                relative_rect=pygame.Rect(p, p, W * 2 // 3, STATUS_BAR_HEIGHT - 2 * p),
                 text='', manager=self._mgr, object_id='#status'),
             'appname': pygame_gui.elements.UILabel(
-                relative_rect=pygame.Rect(W * 2 // 3, p, W // 3 - p, BAR_H - 2 * p),
+                relative_rect=pygame.Rect(W * 2 // 3, p, W // 3 - p, STATUS_BAR_HEIGHT - 2 * p),
                 text='squelch-tail', manager=self._mgr, object_id='#appname'),
             'tg': pygame_gui.elements.UILabel(
-                relative_rect=pygame.Rect(p, TG_Y, W - 2 * p, TG_H),
+                relative_rect=pygame.Rect(p, TALKGROUP_Y, W - 2 * p, TALKGROUP_HEIGHT),
                 text='', manager=self._mgr, object_id='#talkgroup'),
             'info': pygame_gui.elements.UILabel(
-                relative_rect=pygame.Rect(p, INFO_Y, W - 2 * p, ROW_H),
+                relative_rect=pygame.Rect(p, SYSTEM_INFO_Y, W - 2 * p, ROW_HEIGHT),
                 text='', manager=self._mgr, object_id='#info'),
             'units': pygame_gui.elements.UILabel(
-                relative_rect=pygame.Rect(p, UNIT_Y, W - 2 * p, ROW_H),
+                relative_rect=pygame.Rect(p, UNITS_Y, W - 2 * p, ROW_HEIGHT),
                 text='', manager=self._mgr, object_id='#units'),
             'vol': pygame_gui.elements.UILabel(
-                relative_rect=pygame.Rect(p, VOL_Y, W - 2 * p, H - VOL_Y),
+                relative_rect=pygame.Rect(p, VOLUME_Y, W - 2 * p, H - VOLUME_Y),
                 text='', manager=self._mgr, object_id='#volume'),
         }
 
@@ -224,8 +226,8 @@ class EinkApp:
         self._update_labels()
         self._surf.fill(WHITE)
         self._mgr.draw_ui(self._surf)
-        pygame.draw.line(self._surf, BLACK, (0, DIV1), (W, DIV1))
-        pygame.draw.line(self._surf, BLACK, (0, DIV2), (W, DIV2))
+        pygame.draw.line(self._surf, BLACK, (0, TOP_DIVIDER_Y),    (W, TOP_DIVIDER_Y))
+        pygame.draw.line(self._surf, BLACK, (0, BOTTOM_DIVIDER_Y), (W, BOTTOM_DIVIDER_Y))
 
         if self.test and self._screen:
             self._screen.blit(self._surf, (0, 0))
@@ -253,7 +255,7 @@ class EinkApp:
     # ── Touch ─────────────────────────────────────────────────────────────────
 
     def _on_touch(self, x: int, y: int) -> None:
-        if y >= DIV2:
+        if y >= BOTTOM_DIVIDER_Y:
             self._volume = max(0, self._volume - 10) if x < W // 2 else min(100, self._volume + 10)
             set_pulse_volume(self._volume)
             send_command({'type': 'volume', 'value': self._volume})

@@ -17,19 +17,19 @@ def pct(total, percent):
 
 # ── Row heights as % of H ─────────────────────────────────────────────────────
 #   Must add up to ≤ 100% (remainder goes to talkgroup row)
-BAR_H = pct(H, 15)   # status bar           ≈ 18 px
-ROW_H = pct(H, 15)   # info / units / vol   ≈ 18 px  (each)
-TG_H  = H - BAR_H - 3 * ROW_H - 2   # talkgroup: whatever remains ≈ 48 px
+STATUS_BAR_HEIGHT = pct(H, 16)   # ≈ 20 px
+ROW_HEIGHT        = pct(H, 16)   # info / units / vol rows  ≈ 20 px  (each)
+TALKGROUP_HEIGHT  = H - STATUS_BAR_HEIGHT - 3 * ROW_HEIGHT - 2   # whatever remains ≈ 44 px
 
 # ── Y positions (computed, do not edit) ──────────────────────────────────────
-DIV1   = BAR_H
-TG_Y   = DIV1 + 1
-INFO_Y = TG_Y  + TG_H
-UNIT_Y = INFO_Y + ROW_H
-DIV2   = UNIT_Y + ROW_H + 1
-VOL_Y  = DIV2 + 1
+TOP_DIVIDER_Y    = STATUS_BAR_HEIGHT
+TALKGROUP_Y      = TOP_DIVIDER_Y + 1
+SYSTEM_INFO_Y    = TALKGROUP_Y   + TALKGROUP_HEIGHT
+UNITS_Y          = SYSTEM_INFO_Y + ROW_HEIGHT
+BOTTOM_DIVIDER_Y = UNITS_Y       + ROW_HEIGHT + 1
+VOLUME_Y         = BOTTOM_DIVIDER_Y + 1
 
 # ── Font sizes as % of their row height ──────────────────────────────────────
-F_BAR = pct(BAR_H, 70)   # status bar font   ≈ 12 pt
-F_TG  = pct(TG_H,  55)   # talkgroup font    ≈ 26 pt
-F_ROW = pct(ROW_H, 70)   # info/units/vol    ≈ 12 pt
+STATUS_FONT_SIZE    = pct(STATUS_BAR_HEIGHT, 70)   # ≈ 12 pt
+TALKGROUP_FONT_SIZE = pct(TALKGROUP_HEIGHT,  55)   # ≈ 24 pt
+ROW_FONT_SIZE       = pct(ROW_HEIGHT,        70)   # ≈ 12 pt

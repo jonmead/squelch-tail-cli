@@ -28,23 +28,23 @@ from .state import DisplayState
 from .volume import get_pulse_volume, set_pulse_volume
 
 # ── Colour palette (dark scanner theme) ──────────────────────────────────────
-C_BG     = (13,  17,  23)
-C_PANEL  = (22,  27,  34)
-C_BORDER = (48,  54,  61)
-C_TEXT   = (230, 237, 243)
-C_DIM    = (110, 118, 129)
-C_GREEN  = (63,  185,  80)
-C_RED    = (248,  81,  73)
-C_ORANGE = (240, 136,  62)
-C_BLUE   = (31,  111, 235)
-C_CYAN   = (121, 192, 255)
-C_YELLOW = (210, 153,  34)
-C_PURPLE = (210, 168, 255)
-C_BTN    = (36,   41,  47)
-C_BTN_P  = (56,  139, 253)   # pressed
+COLOR_BACKGROUND     = (13,  17,  23)
+COLOR_PANEL  = (22,  27,  34)
+COLOR_BORDER = (48,  54,  61)
+COLOR_TEXT   = (230, 237, 243)
+COLOR_DIM    = (110, 118, 129)
+COLOR_GREEN  = (63,  185,  80)
+COLOR_RED    = (248,  81,  73)
+COLOR_ORANGE = (240, 136,  62)
+COLOR_BLUE   = (31,  111, 235)
+COLOR_CYAN   = (121, 192, 255)
+COLOR_YELLOW = (210, 153,  34)
+COLOR_PURPLE = (210, 168, 255)
+COLOR_BUTTON    = (36,   41,  47)
+COLOR_BUTTON_PRESSED  = (56,  139, 253)   # pressed
 
-M      = 8    # outer margin
-VSEP_X = 270  # x of the vertical separator
+MARGIN = 8    # outer margin
+VERTICAL_SEPARATOR_X = 270  # x of the vertical separator
 
 
 def _trunc(font, text: str, max_w: int) -> str:
@@ -65,13 +65,13 @@ class Button:
     def __init__(self, rect, label: str, fg=None):
         self.rect    = pygame.Rect(rect)
         self.label   = label
-        self.fg      = fg or C_TEXT
+        self.fg      = fg or COLOR_TEXT
         self.pressed = False
 
     def draw(self, surf, font) -> None:
-        bg = C_BTN_P if self.pressed else C_BTN
+        bg = COLOR_BUTTON_PRESSED if self.pressed else COLOR_BUTTON
         pygame.draw.rect(surf, bg,       self.rect, border_radius=6)
-        pygame.draw.rect(surf, C_BORDER, self.rect, 1, border_radius=6)
+        pygame.draw.rect(surf, COLOR_BORDER, self.rect, 1, border_radius=6)
         txt = font.render(self.label, True, self.fg)
         surf.blit(txt, txt.get_rect(center=self.rect.center))
 
@@ -80,8 +80,8 @@ class Button:
 
 
 class LcdApp:
-    _HEAD_H   = 40   # header height
-    _BOTTOM_H = 60   # bottom bar height (progress + controls)
+    _HEADER_HEIGHT   = 40   # header height
+    _BOTTOM_BAR_HEIGHT = 60   # bottom bar height (progress + controls)
 
     def __init__(self, width=480, height=320, rotate=0, fullscreen=False, touch=True, test=False):
         self.W          = width
@@ -158,33 +158,33 @@ class LcdApp:
             except Exception:
                 return pygame.font.Font(None, size)
 
-        self.f_head  = F(16, bold=True)
-        self.f_sys   = F(17)
-        self.f_tg    = F(28, bold=True)
-        self.f_body  = F(16)
-        self.f_small = F(14)
-        self.f_badge = F(13, bold=True)
-        self.f_btn   = F(14, bold=True)
-        self.f_vol   = F(16, bold=True)
+        self.font_header    = F(16, bold=True)
+        self.font_system    = F(17)
+        self.font_talkgroup = F(28, bold=True)
+        self.font_body      = F(16)
+        self.font_small     = F(14)
+        self.font_badge     = F(13, bold=True)
+        self.font_button    = F(14, bold=True)
+        self.font_volume    = F(16, bold=True)
 
     def _init_buttons(self):
         W, H = self.W, self.H
 
-        # Bottom-right quadrant: controls (right of VSEP_X, bottom _BOTTOM_H rows)
-        btn_y  = H - self._BOTTOM_H + 9
-        btn_h  = self._BOTTOM_H - 18
-        x      = VSEP_X + M
+        # Bottom-right quadrant: controls (right of VERTICAL_SEPARATOR_X, bottom _BOTTOM_H rows)
+        btn_y  = H - self._BOTTOM_BAR_HEIGHT + 9
+        btn_h  = self._BOTTOM_BAR_HEIGHT - 18
+        x      = VERTICAL_SEPARATOR_X + MARGIN
 
         self.btn_skip    = Button((x, btn_y, 50, btn_h), '⏭ SKIP')
         x += 50 + 4
         self.btn_pause   = Button((x, btn_y, 58, btn_h), '⏸ PAUSE')
         x += 58 + 8
 
-        self.btn_vol_dn  = Button((x, btn_y, 28, btn_h), '−', fg=C_CYAN)
+        self.btn_vol_dn  = Button((x, btn_y, 28, btn_h), '−', fg=COLOR_CYAN)
         x += 28 + 2
         self._vol_rect   = pygame.Rect(x, btn_y, 38, btn_h)
         x += 38 + 2
-        self.btn_vol_up  = Button((x, btn_y, 28, btn_h), '+', fg=C_CYAN)
+        self.btn_vol_up  = Button((x, btn_y, 28, btn_h), '+', fg=COLOR_CYAN)
 
         self._buttons = [self.btn_skip, self.btn_pause, self.btn_vol_dn, self.btn_vol_up]
 
@@ -266,13 +266,13 @@ class LcdApp:
         surf = self.screen
         W, H = self.W, self.H
 
-        surf.fill(C_BG)
+        surf.fill(COLOR_BACKGROUND)
 
         self._draw_header(surf, s)
-        self._vline(surf, VSEP_X, self._HEAD_H, H)
+        self._vline(surf, VERTICAL_SEPARATOR_X, self._HEADER_HEIGHT, H)
 
-        content_top    = self._HEAD_H + 4
-        content_bottom = H - self._BOTTOM_H - 1
+        content_top    = self._HEADER_HEIGHT + 4
+        content_bottom = H - self._BOTTOM_BAR_HEIGHT - 1
 
         if s.call:
             self._draw_call_left(surf, s, content_top, content_bottom)
@@ -280,43 +280,43 @@ class LcdApp:
         else:
             self._draw_idle(surf, s, content_top)
 
-        self._hline(surf, H - self._BOTTOM_H, W)
+        self._hline(surf, H - self._BOTTOM_BAR_HEIGHT, W)
         self._draw_bottom(surf, s)
 
     # ── Header ────────────────────────────────────────────────────────────────
 
     def _draw_header(self, surf, s):
         W = self.W
-        pygame.draw.rect(surf, C_PANEL, (0, 0, W, self._HEAD_H))
-        self._hline(surf, self._HEAD_H, W)
+        pygame.draw.rect(surf, COLOR_PANEL, (0, 0, W, self._HEADER_HEIGHT))
+        self._hline(surf, self._HEADER_HEIGHT, W)
 
-        cy = self._HEAD_H // 2
+        cy = self._HEADER_HEIGHT // 2
 
         # Title (left)
-        title = self.f_head.render('SQUELCH TAIL', True, C_YELLOW)
-        surf.blit(title, (M, cy - title.get_height() // 2))
+        title = self.font_header.render('SQUELCH TAIL', True, COLOR_YELLOW)
+        surf.blit(title, (MARGIN, cy - title.get_height() // 2))
 
         # Status dot + label (left-centre)
         if s.paused:
-            dot_c, label = C_YELLOW, 'PAUSED'
+            dot_c, label = COLOR_YELLOW, 'PAUSED'
         elif s.lfActive:
-            dot_c, label = C_GREEN,  'LIVE'
+            dot_c, label = COLOR_GREEN,  'LIVE'
         elif s.connected:
-            dot_c, label = C_ORANGE, 'CONNECTED'
+            dot_c, label = COLOR_ORANGE, 'CONNECTED'
         else:
-            dot_c, label = C_DIM,    'OFFLINE'
+            dot_c, label = COLOR_DIM,    'OFFLINE'
 
-        st_x = M + title.get_width() + 20
+        st_x = MARGIN + title.get_width() + 20
         pygame.draw.circle(surf, dot_c, (st_x, cy), 4)
-        st = self.f_head.render(label, True, dot_c)
+        st = self.font_header.render(label, True, dot_c)
         surf.blit(st, (st_x + 8, cy - st.get_height() // 2))
 
         # System name (centre, if call active)
         if s.call:
-            sys_str = _trunc(self.f_head,
+            sys_str = _trunc(self.font_header,
                               s.call.systemLabel or f'System {s.call.systemId}',
-                              VSEP_X - st_x - st.get_width() - 24)
-            sys_s = self.f_head.render(sys_str, True, C_DIM)
+                              VERTICAL_SEPARATOR_X - st_x - st.get_width() - 24)
+            sys_s = self.font_header.render(sys_str, True, COLOR_DIM)
             sys_x = st_x + st.get_width() + 16
             surf.blit(sys_s, (sys_x, cy - sys_s.get_height() // 2))
 
@@ -327,35 +327,35 @@ class LcdApp:
         if s.holdSys is not None:     parts.append('HSY')
         if s.holdTg  is not None:     parts.append('HTG')
         if parts:
-            info = self.f_small.render('  '.join(parts), True, C_DIM)
-            surf.blit(info, (W - M - info.get_width(), cy - info.get_height() // 2))
+            info = self.font_small.render('  '.join(parts), True, COLOR_DIM)
+            surf.blit(info, (W - MARGIN - info.get_width(), cy - info.get_height() // 2))
 
     # ── Left column: call metadata ────────────────────────────────────────────
 
     def _draw_call_left(self, surf, s, y_top, y_bottom):
         call = s.call
-        col_w = VSEP_X - M * 2   # usable width in left column
+        col_w = VERTICAL_SEPARATOR_X - MARGIN * 2   # usable width in left column
         y = y_top
 
-        def row(font, text, color=C_TEXT, gap=3):
+        def row(font, text, color=COLOR_TEXT, gap=3):
             nonlocal y
             txt = _trunc(font, text, col_w)
             r   = font.render(txt, True, color)
-            surf.blit(r, (M, y))
+            surf.blit(r, (MARGIN, y))
             y  += r.get_height() + gap
 
         # Talkgroup label (hero)
         tg_str = call.tgLabel or str(call.talkgroupId)
-        row(self.f_tg, tg_str, C_TEXT, gap=2)
+        row(self.font_talkgroup, tg_str, COLOR_TEXT, gap=2)
 
         # TG full name
         if call.tgName and call.tgName != call.tgLabel:
-            row(self.f_body, call.tgName, C_DIM, gap=2)
+            row(self.font_body, call.tgName, COLOR_DIM, gap=2)
 
         # Group · Tag
         grp_parts = [p for p in [call.tgGroup, call.tgGroupTag] if p]
         if grp_parts:
-            row(self.f_body, ' · '.join(grp_parts), C_CYAN, gap=2)
+            row(self.font_body, ' · '.join(grp_parts), COLOR_CYAN, gap=2)
 
         # Freq + time
         freq_str = _fmt_freq(call.freq)
@@ -368,15 +368,15 @@ class LcdApp:
             time_str = dt.strftime('%H:%M:%S')
         line = '  ·  '.join(p for p in [freq_str, time_str] if p)
         if line:
-            row(self.f_body, line, C_CYAN, gap=4)
+            row(self.font_body, line, COLOR_CYAN, gap=4)
 
         # Badges
-        bx, badge_h = M, 0
+        bx, badge_h = MARGIN, 0
         if call.emergency:
-            b = self._make_badge('★ EMERGENCY', C_RED, C_TEXT)
+            b = self._make_badge('★ EMERGENCY', COLOR_RED, COLOR_TEXT)
             surf.blit(b, (bx, y)); bx += b.get_width() + 6; badge_h = b.get_height()
         if call.encrypted:
-            b = self._make_badge('ENCRYPTED', C_PURPLE, C_BG)
+            b = self._make_badge('ENCRYPTED', COLOR_PURPLE, COLOR_BACKGROUND)
             surf.blit(b, (bx, y)); badge_h = max(badge_h, b.get_height())
         if badge_h:
             y += badge_h + 4
@@ -385,8 +385,8 @@ class LcdApp:
 
     def _draw_units_right(self, surf, s, y_top, y_bottom):
         call    = s.call
-        x0      = VSEP_X + M
-        col_w   = self.W - x0 - M
+        x0      = VERTICAL_SEPARATOR_X + MARGIN
+        col_w   = self.W - x0 - MARGIN
         y       = y_top
 
         if not call.units:
@@ -403,81 +403,81 @@ class LcdApp:
         if not units:
             return
 
-        hdr = self.f_small.render(f'UNITS ({len(units)})', True, C_DIM)
+        hdr = self.font_small.render(f'UNITS ({len(units)})', True, COLOR_DIM)
         surf.blit(hdr, (x0, y))
         y += hdr.get_height() + 3
 
-        unit_h    = self.f_small.get_linesize() + 4
+        unit_h    = self.font_small.get_linesize() + 4
         max_units = max(0, (y_bottom - y) // unit_h)
 
         for u in units[:max_units]:
             emr  = '★ ' if u.emergency else '  '
             tag  = f'  {u.tag}' if u.tag else ''
-            line = _trunc(self.f_small, f'{emr}{u.unitId}{tag}', col_w)
-            clr  = C_RED if u.emergency else C_TEXT
-            surf.blit(self.f_small.render(line, True, clr), (x0, y))
+            line = _trunc(self.font_small, f'{emr}{u.unitId}{tag}', col_w)
+            clr  = COLOR_RED if u.emergency else COLOR_TEXT
+            surf.blit(self.font_small.render(line, True, clr), (x0, y))
             y += unit_h
 
         if len(units) > max_units:
-            more = self.f_small.render(
-                f'… +{len(units) - max_units}', True, C_DIM)
+            more = self.font_small.render(
+                f'… +{len(units) - max_units}', True, COLOR_DIM)
             surf.blit(more, (x0, y))
 
     # ── Idle state ────────────────────────────────────────────────────────────
 
     def _draw_idle(self, surf, s, y_top):
         if not s.connected:
-            text, color = 'Connecting…', C_DIM
+            text, color = 'Connecting…', COLOR_DIM
         elif s.paused:
-            text, color = 'Paused', C_YELLOW
+            text, color = 'Paused', COLOR_YELLOW
         else:
-            text, color = 'Waiting for calls…', C_DIM
+            text, color = 'Waiting for calls…', COLOR_DIM
 
-        idle = self.f_tg.render(text, True, color)
-        surf.blit(idle, (M, y_top + 16))
+        idle = self.font_talkgroup.render(text, True, color)
+        surf.blit(idle, (MARGIN, y_top + 16))
 
     # ── Bottom bar: progress (left) + controls (right) ────────────────────────
 
     def _draw_bottom(self, surf, s):
         W, H = self.W, self.H
-        bar_y = H - self._BOTTOM_H
+        bar_y = H - self._BOTTOM_BAR_HEIGHT
 
         # Progress — left column
-        prog_x  = M
-        prog_w  = VSEP_X - M * 2 - 52   # leave room for elapsed text
-        prog_cy = bar_y + self._BOTTOM_H // 2
+        prog_x  = MARGIN
+        prog_w  = VERTICAL_SEPARATOR_X - MARGIN * 2 - 52   # leave room for elapsed text
+        prog_cy = bar_y + self._BOTTOM_BAR_HEIGHT // 2
 
         if s.playing:
             elapsed = s.elapsed
             filled  = int(prog_w * (elapsed % 60) / 60)
-            pygame.draw.rect(surf, C_PANEL,  (prog_x, prog_cy - 7, prog_w, 14), border_radius=3)
+            pygame.draw.rect(surf, COLOR_PANEL,  (prog_x, prog_cy - 7, prog_w, 14), border_radius=3)
             if filled > 0:
-                pygame.draw.rect(surf, C_BLUE, (prog_x, prog_cy - 7, filled, 14), border_radius=3)
-            pygame.draw.rect(surf, C_BORDER, (prog_x, prog_cy - 7, prog_w, 14), 1, border_radius=3)
-            el = self.f_body.render(f'{elapsed:.1f}s', True, C_TEXT)
+                pygame.draw.rect(surf, COLOR_BLUE, (prog_x, prog_cy - 7, filled, 14), border_radius=3)
+            pygame.draw.rect(surf, COLOR_BORDER, (prog_x, prog_cy - 7, prog_w, 14), 1, border_radius=3)
+            el = self.font_body.render(f'{elapsed:.1f}s', True, COLOR_TEXT)
             surf.blit(el, (prog_x + prog_w + 6, prog_cy - el.get_height() // 2))
         else:
-            dash = self.f_body.render('—', True, C_DIM)
+            dash = self.font_body.render('—', True, COLOR_DIM)
             surf.blit(dash, (prog_x, prog_cy - dash.get_height() // 2))
 
         # Controls — right column
         self.btn_pause.label = '⏵ PLAY' if s.paused else '⏸ PAUSE'
         for btn in self._buttons:
-            btn.draw(surf, self.f_btn)
+            btn.draw(surf, self.font_button)
 
-        vol = self.f_vol.render(f'{self._volume}%', True, C_CYAN)
+        vol = self.font_volume.render(f'{self._volume}%', True, COLOR_CYAN)
         surf.blit(vol, vol.get_rect(center=self._vol_rect.center))
 
     # ── Helpers ───────────────────────────────────────────────────────────────
 
     def _hline(self, surf, y, w):
-        pygame.draw.line(surf, C_BORDER, (0, y), (w, y))
+        pygame.draw.line(surf, COLOR_BORDER, (0, y), (w, y))
 
     def _vline(self, surf, x, y0, y1):
-        pygame.draw.line(surf, C_BORDER, (x, y0), (x, y1))
+        pygame.draw.line(surf, COLOR_BORDER, (x, y0), (x, y1))
 
     def _make_badge(self, text, bg, fg) -> pygame.Surface:
-        txt = self.f_badge.render(text, True, fg)
+        txt = self.font_badge.render(text, True, fg)
         pad = 4
         s   = pygame.Surface((txt.get_width() + pad * 2, txt.get_height() + pad),
                               pygame.SRCALPHA)
