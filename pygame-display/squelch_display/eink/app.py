@@ -46,6 +46,7 @@ class EinkApp:
         self._running       = True
         self._dirty         = True
         self._full_refresh  = True   # first paint is always a full refresh
+        self._was_in_call   = False  # tracks previous call state for transition detection
         self._epd           = None
         self._touch_reader  = None
         self._last_time_str = ''
@@ -70,6 +71,10 @@ class EinkApp:
                     self.state.update(msg)
                     if self._display_snapshot() != snap:
                         self._dirty = True
+                        now_in_call = bool(self.state.call)
+                        if self._was_in_call and not now_in_call:
+                            self._full_refresh = True  # clear ghosting from large font
+                        self._was_in_call = now_in_call
 
             if not self.state.call:
                 now = datetime.datetime.now().strftime('%H:%M')
