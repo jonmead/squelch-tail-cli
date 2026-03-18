@@ -106,24 +106,55 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# Step 2: SPI enable
+# Step 2: SPI and I2C enable
 # ---------------------------------------------------------------------------
-step "Step 2: SPI Enable"
+step "Step 2: SPI and I2C Enable"
 
 CONFIG_FILE="/boot/firmware/config.txt"
 
 if [[ ! -f "$CONFIG_FILE" ]]; then
-    warn "${CONFIG_FILE} not found — skipping SPI check."
-elif grep -q "^dtparam=spi=on" "$CONFIG_FILE" 2>/dev/null; then
-    ok "SPI already enabled in ${CONFIG_FILE}"
+    warn "${CONFIG_FILE} not found — skipping SPI/I2C check."
 else
-    echo "  SPI is not enabled. Enabling now..."
-    if sudo bash -c "echo 'dtparam=spi=on' >> ${CONFIG_FILE}"; then
-        ok "Added 'dtparam=spi=on' to ${CONFIG_FILE}"
-        SPI_JUST_ENABLED=true
-        warn "A reboot will be required before the display will work, but setup will continue."
+    if grep -q "^dtparam=spi=on" "$CONFIG_FILE" 2>/dev/null; then
+        ok "SPI already enabled in ${CONFIG_FILE}"
     else
-        err "Failed to write to ${CONFIG_FILE}. You may need to enable SPI manually via raspi-config."
+        echo "  SPI is not enabled. Enabling now..."
+        if sudo bash -c "echo 'dtparam=spi=on' >> ${CONFIG_FILE}"; then
+            ok "Added 'dtparam=spi=on' to ${CONFIG_FILE}"
+            SPI_JUST_ENABLED=true
+            warn "A reboot will be required before the display will work, but setup will continue."
+        else
+            err "Failed to write to ${CONFIG_FILE}. You may need to enable SPI manually via raspi-config."
+        fi
+    fi
+
+    if grep -q "^dtparam=i2c_arm=on" "$CONFIG_FILE" 2>/dev/null; then
+        ok "I2C already enabled in ${CONFIG_FILE}"
+    else
+        echo "  I2C is not enabled. Enabling now..."
+        if sudo sed -i 's/^#dtparam=i2c_arm=on/dtparam=i2c_arm=on/' "$CONFIG_FILE" 2>/dev/null && \
+           grep -q "^dtparam=i2c_arm=on" "$CONFIG_FILE" 2>/dev/null; then
+            ok "Enabled 'dtparam=i2c_arm=on' in ${CONFIG_FILE}"
+            SPI_JUST_ENABLED=true   # reuse reboot flag — reboot needed for I2C too
+        elif sudo bash -c "echo 'dtparam=i2c_arm=on' >> ${CONFIG_FILE}"; then
+            ok "Added 'dtparam=i2c_arm=on' to ${CONFIG_FILE}"
+            SPI_JUST_ENABLED=true
+        else
+            err "Failed to enable I2C in ${CONFIG_FILE}."
+        fi
+    fi
+
+    # Ensure I2C kernel modules load on boot (needed on Pi OS Trixie)
+    I2C_MODULES_FILE="/etc/modules-load.d/i2c.conf"
+    if [[ -f "$I2C_MODULES_FILE" ]] && grep -q "i2c-dev" "$I2C_MODULES_FILE" 2>/dev/null; then
+        ok "I2C modules already configured in ${I2C_MODULES_FILE}"
+    else
+        echo "  Configuring I2C modules to load at boot..."
+        if sudo bash -c "echo -e 'i2c-dev\ni2c-bcm2835' > ${I2C_MODULES_FILE}"; then
+            ok "Created ${I2C_MODULES_FILE}"
+        else
+            warn "Could not write ${I2C_MODULES_FILE} — I2C modules may not load on boot."
+        fi
     fi
 fi
 

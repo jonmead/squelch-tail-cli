@@ -65,20 +65,29 @@ sudo raspi-config
 
 **Option B — manual edit:**
 
-Add the following line to `/boot/firmware/config.txt`:
+Add the following lines to `/boot/firmware/config.txt`:
 ```
 dtparam=spi=on
+dtparam=i2c_arm=on
 ```
 
-Reboot after enabling SPI:
+Also configure I2C kernel modules to load at boot (required on Pi OS Trixie):
+```bash
+sudo bash -c 'echo -e "i2c-dev\ni2c-bcm2835" > /etc/modules-load.d/i2c.conf'
+```
+
+Reboot after enabling SPI/I2C:
 ```bash
 sudo reboot
 ```
 
-Verify SPI devices are present after reboot:
+Verify SPI and I2C devices are present after reboot:
 ```bash
 ls /dev/spidev0.*
 # Should show: /dev/spidev0.0  /dev/spidev0.1
+
+ls /dev/i2c-*
+# Should show: /dev/i2c-1
 ```
 
 ### 4.3 User Groups
@@ -192,9 +201,23 @@ These variables can be set in the shell before launching to override display beh
 | `SQUELCH_DISPLAY_EXTRA` | _(empty)_ | Extra argument string passed to the display process |
 | `SQUELCH_DISPLAY_TEST` | unset | Set to `1` to open a desktop window instead of driving hardware |
 
-### 5.6 Physical Buttons (Optional)
+### 5.6 Touch Input
 
-The Waveshare 2.13" V4 HAT is a display-only device — it has no touch input. You can wire momentary push-buttons (active-low, GPIO → GND) to any free BCM GPIO pins and configure them via environment variables:
+The Waveshare 2.13" Touch e-Paper HAT includes a GT1151 capacitive touch controller on I2C address 0x14. Touch is enabled automatically when the GT1151 is detected on I2C bus 1 — no extra configuration is needed beyond enabling I2C (Section 4.2).
+
+**Touch zones (landscape 250×122):**
+- Tap the content area (middle of screen) → play/pause toggle
+- Tap the bottom bar → open volume menu; then tap left half = vol down, right half = vol up
+
+**Verify the touch controller is detected after boot:**
+```bash
+sudo i2cdetect -y 1
+# Should show "14" at address 0x14
+```
+
+#### Physical Buttons (Alternative)
+
+If using the non-touch Waveshare 2.13" V4 HAT (display-only), you can wire momentary push-buttons (active-low, GPIO → GND) to any free BCM GPIO pins and configure them via environment variables:
 
 | Variable | Description |
 |----------|-------------|

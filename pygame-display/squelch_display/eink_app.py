@@ -106,6 +106,7 @@ class EinkApp:
 
         self._partial_count = 0   # tracks partials since last full refresh
         self._gpio_btns     = []  # gpiozero Button objects (for cleanup)
+        self._touch_reader  = None
 
     def run(self) -> None:
         self._init_hardware()
@@ -180,7 +181,19 @@ class EinkApp:
             print(f'[eink] Hardware init error: {exc}', file=sys.stderr)
 
         if not self.test:
+            self._init_touch()
             self._init_gpio_buttons()
+
+    def _init_touch(self) -> None:
+        """Start GT1151 capacitive touch reader (I2C bus 1)."""
+        try:
+            from .gt1151 import GT1151Reader
+            i2c_bus = int(os.environ.get('SQUELCH_I2C_BUS', '1'))
+            reader = GT1151Reader(on_touch=self._on_touch, i2c_bus=i2c_bus)
+            if reader.start():
+                self._touch_reader = reader
+        except Exception as exc:
+            print(f'[eink] Touch init error: {exc}', file=sys.stderr)
 
     def _init_gpio_buttons(self) -> None:
         """Wire physical GPIO buttons via env vars (BCM pin numbers)."""
@@ -553,6 +566,8 @@ class EinkApp:
     # ── Cleanup ───────────────────────────────────────────────────────────────
 
     def _cleanup(self) -> None:
+        if self._touch_reader:
+            self._touch_reader.stop()
         for btn in self._gpio_btns:
             try:
                 btn.close()

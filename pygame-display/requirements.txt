@@ -5,6 +5,9 @@ pygame-ce>=2.5.0
 # Required for e-ink mode (Waveshare 2.13" driver converts pygame surface → PIL)
 Pillow>=9.0.0
 
+# I2C communication for GT1151 touch controller (Waveshare 2.13" Touch HAT)
+smbus2>=0.4.0
+
 # Optional: Waveshare e-Paper HAT driver (e-ink mode only)
 # Install on Raspberry Pi Zero:
 #   pip install waveshare-epaper
