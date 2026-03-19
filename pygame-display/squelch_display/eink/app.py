@@ -44,7 +44,8 @@ class EinkApp:
         self.ipc     = IpcReader()
         self._volume        = 100
         self._running       = True
-        self._dirty         = True
+        self._dirty         = True   # force first paint
+        self._screen_in_call = False  # what is currently shown on the hardware
         self._epd           = None
         self._touch_reader  = None
         self._last_time_str = ''
@@ -65,15 +66,21 @@ class EinkApp:
                     self._running = False
                     break
                 elif msg.get('type') == 'state':
-                    snap = self._display_snapshot()
                     self.state.update(msg)
-                    if self._display_snapshot() != snap:
-                        self._dirty = True
 
-            if not self.state.call:
-                now = datetime.datetime.now().strftime('%H:%M')
-                if now != self._last_time_str:
-                    self._dirty = True
+            # Determine whether the hardware display needs updating.
+            # Only four events warrant a refresh:
+            #   1. A call is playing but the screen still shows standby.
+            #   2. A call ended but the screen still shows the call.
+            #   3. Standby is active and the clock minute has changed.
+            #   4. A touch event (volume / pause) set _dirty directly.
+            now_in_call = bool(self.state.call)
+            if now_in_call != self._screen_in_call:
+                self._dirty = True          # call started or ended
+            elif not now_in_call:
+                now_min = datetime.datetime.now().strftime('%H:%M')
+                if now_min != self._last_time_str:
+                    self._dirty = True      # clock minute changed
 
             if self.test:
                 dt = clock.tick(20) / 1000.0
@@ -89,6 +96,9 @@ class EinkApp:
             elif self._dirty:
                 self._mgr.update(1 / 20)
                 self._render_and_push()
+                self._screen_in_call = now_in_call
+                if not now_in_call:
+                    self._last_time_str = datetime.datetime.now().strftime('%H:%M')
                 self._dirty = False
                 time.sleep(0.05)
             else:
@@ -133,25 +143,6 @@ class EinkApp:
             except Exception:
                 pass
         pygame.quit()
-
-    # ── Change detection ──────────────────────────────────────────────────────
-
-    def _display_snapshot(self) -> tuple:
-        """Return a tuple of every field that affects what's drawn on screen."""
-        s = self.state
-        call = s.call
-        if call:
-            return (
-                True,
-                call.talkgroupId,
-                call.systemId,
-                call.freq,
-                call.tgLabel,
-                call.systemLabel,
-                s.paused,
-                tuple((u.unitId, u.tag) for u in (call.units or [])),
-            )
-        return (False, s.paused, s.lfActive, s.connected, s.volume)
 
     # ── Pygame / GUI init ─────────────────────────────────────────────────────
 
