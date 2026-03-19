@@ -38,29 +38,31 @@ BADGE_FONT_SIZE     = pct(HEADER_HEIGHT,     32)   # ≈ 13 pt
 BUTTON_FONT_SIZE    = pct(BOTTOM_BAR_HEIGHT, 23)   # ≈ 14 pt
 VOLUME_FONT_SIZE    = pct(BOTTOM_BAR_HEIGHT, 27)   # ≈ 16 pt
 
-# ── Progress bar (left column, bottom bar) ────────────────────────────────────
-PROG_X  = MARGIN
-PROG_W  = SEPARATOR_X - MARGIN * 2 - 52   # ≈ 202 px  (reserve room for elapsed text)
-PROG_H  = pct(BOTTOM_BAR_HEIGHT, 23)      # ≈ 14 px
-PROG_CY = BOTTOM_Y + BOTTOM_BAR_HEIGHT // 2   # vertical centre of bottom bar
-
-# ── Button layout (right column, bottom bar) ──────────────────────────────────
-#   Usable right width: W − SEPARATOR_X − MARGIN*2 ≈ 194 px
-#   skip(44) + 4 + pause(54) + 6 + vol_dn(26) + 2 + vol(28) + 2 + vol_up(26) = 192 px
+# ── Button layout (right side of bottom bar, all buttons grouped) ─────────────
+#   All buttons stay together on the right; progress bar occupies the left gap.
+#   skip(57) + 3 + pause(70) + 3 + vol_dn(34) + 3 + vol(36) + 3 + vol_up(34) = 243 px
 BTN_H        = pct(BOTTOM_BAR_HEIGHT, 70)                   # ≈ 42 px
 BTN_Y        = BOTTOM_Y + (BOTTOM_BAR_HEIGHT - BTN_H) // 2
 
-BTN_SKIP_W   = 44
-BTN_PAUSE_W  = 54
-BTN_VOL_DN_W = 26
-VOL_DISP_W   = 28
-BTN_VOL_UP_W = 26
+BTN_SKIP_W   = 57
+BTN_PAUSE_W  = 70
+BTN_VOL_DN_W = 34
+VOL_DISP_W   = 36
+BTN_VOL_UP_W = 34
 
-BTN_SKIP_X   = SEPARATOR_X + MARGIN                          # 278
-BTN_PAUSE_X  = BTN_SKIP_X   + BTN_SKIP_W   + 4              # 326
-BTN_VOL_DN_X = BTN_PAUSE_X  + BTN_PAUSE_W  + 6              # 386
-VOL_DISP_X   = BTN_VOL_DN_X + BTN_VOL_DN_W + 2              # 414
-BTN_VOL_UP_X = VOL_DISP_X   + VOL_DISP_W   + 2              # 444
+BTN_VOL_UP_X = W - MARGIN   - BTN_VOL_UP_W                  # 438
+VOL_DISP_X   = BTN_VOL_UP_X - 3 - VOL_DISP_W               # 399
+BTN_VOL_DN_X = VOL_DISP_X   - 3 - BTN_VOL_DN_W             # 362
+BTN_PAUSE_X  = BTN_VOL_DN_X - 3 - BTN_PAUSE_W              # 289
+BTN_SKIP_X   = BTN_PAUSE_X  - 3 - BTN_SKIP_W               # 229
+
+# ── Progress bar (left gap in bottom bar) ─────────────────────────────────────
+ELAPSED_W  = 46
+ELAPSED_X  = BTN_SKIP_X - MARGIN - ELAPSED_W                # 175
+PROG_X     = MARGIN                                          # 8
+PROG_W     = ELAPSED_X - PROG_X - 4                         # ≈ 163 px
+PROG_H     = pct(BOTTOM_BAR_HEIGHT, 23)                     # ≈ 14 px
+PROG_CY    = BOTTOM_Y + BOTTOM_BAR_HEIGHT // 2              # vertical centre of bottom bar
 
 # ── Header label rects (full-width header row) ────────────────────────────────
 TITLE_X,    TITLE_W    = MARGIN,              140
@@ -97,10 +99,7 @@ MAX_UNIT_LABELS = 9
 IDLE_Y = CONTENT_Y + 16
 IDLE_H = TALKGROUP_FONT_SIZE + 8
 
-# ── Elapsed text rect (bottom-left, right of progress bar) ───────────────────
-ELAPSED_X = PROG_X + PROG_W + 6
 ELAPSED_Y = BOTTOM_Y
-ELAPSED_W = SEPARATOR_X - ELAPSED_X - MARGIN
 ELAPSED_H = BOTTOM_BAR_HEIGHT
 
 # ── Colour palette (dark scanner theme) ──────────────────────────────────────

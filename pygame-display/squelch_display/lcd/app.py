@@ -73,9 +73,9 @@ def _run_touch_thread(dev: str, W: int, H: int, stop: list) -> None:
 
     SQUELCH_TOUCH_XMIN / XMAX   raw X range          (default 0 / 4095)
     SQUELCH_TOUCH_YMIN / YMAX   raw Y range          (default 0 / 4095)
-    SQUELCH_TOUCH_SWAP_XY       swap axes            (default 1)
-    SQUELCH_TOUCH_INVERT_X      invert X after swap  (default 1)
-    SQUELCH_TOUCH_INVERT_Y      invert Y after swap  (default 0)
+    SQUELCH_TOUCH_SWAP_XY       swap axes            (default 0)
+    SQUELCH_TOUCH_INVERT_X      invert X after swap  (default 0)
+    SQUELCH_TOUCH_INVERT_Y      invert Y after swap  (default 1)
     SQUELCH_TOUCH_DEV           evdev path           (default /dev/input/event0)
     """
     def _env_bool(key, default):
@@ -85,9 +85,9 @@ def _run_touch_thread(dev: str, W: int, H: int, stop: list) -> None:
     xmax = int(os.environ.get('SQUELCH_TOUCH_XMAX', '4095'))
     ymin = int(os.environ.get('SQUELCH_TOUCH_YMIN', '0'))
     ymax = int(os.environ.get('SQUELCH_TOUCH_YMAX', '4095'))
-    swap = _env_bool('SQUELCH_TOUCH_SWAP_XY',  True)
-    invx = _env_bool('SQUELCH_TOUCH_INVERT_X', True)
-    invy = _env_bool('SQUELCH_TOUCH_INVERT_Y', False)
+    swap = _env_bool('SQUELCH_TOUCH_SWAP_XY',  False)
+    invx = _env_bool('SQUELCH_TOUCH_INVERT_X', False)
+    invy = _env_bool('SQUELCH_TOUCH_INVERT_Y', True)
 
     def _map(rx, ry):
         if swap: rx, ry = ry, rx

@@ -25,6 +25,10 @@ fi
 # Ensure the Python venv and all dependencies are ready
 "$SCRIPT_DIR/pygame-display/ensure-venv.sh"
 
+# Load touch calibration if present (written by calibrate-touch.sh)
+# shellcheck disable=SC1090
+[ -f "$HOME/.squelch-touch-cal" ] && . "$HOME/.squelch-touch-cal"
+
 # SDL driver is selected automatically by the Python app:
 #   /dev/fb1 present  → offscreen rendering flushed to framebuffer (GPIO LCD HATs)
 #   /dev/fb1 absent   → kmsdrm (HDMI / KMS display)
