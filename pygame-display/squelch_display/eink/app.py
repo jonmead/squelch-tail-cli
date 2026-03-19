@@ -177,14 +177,14 @@ class EinkApp:
         # the theme references them or pygame-gui falls back to system font.
         self._mgr = pygame_gui.UIManager((W, H))
         self._mgr.add_font_paths(
-            'bitter',
-            regular_path=os.path.join(_fonts, 'Bitter-Regular.ttf'),
-            bold_path=os.path.join(_fonts, 'Bitter-Bold.ttf'),
+            'roboto',
+            regular_path=os.path.join(_fonts, 'Roboto-Medium.ttf'),
+            bold_path=os.path.join(_fonts, 'Roboto-Bold.ttf'),
         )
         _sizes = sorted({ROW_FONT_SIZE, STATUS_FONT_SIZE, TALKGROUP_FONT_SIZE, CLOCK_FONT_SIZE, TALKGROUP_CALL_FONT_SIZE})
         self._mgr.preload_fonts(
-            [{'name': 'bitter', 'point_size': s, 'style': 'regular'} for s in _sizes] +
-            [{'name': 'bitter', 'point_size': s, 'style': 'bold'}    for s in _sizes]
+            [{'name': 'roboto', 'point_size': s, 'style': 'regular'} for s in _sizes] +
+            [{'name': 'roboto', 'point_size': s, 'style': 'bold'}    for s in _sizes]
         )
         self._mgr.get_theme().load_theme(_build_theme(_theme))
 
