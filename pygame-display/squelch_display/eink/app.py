@@ -181,10 +181,16 @@ class EinkApp:
             regular_path=os.path.join(_fonts, 'Roboto-Medium.ttf'),
             bold_path=os.path.join(_fonts, 'Roboto-Bold.ttf'),
         )
+        self._mgr.add_font_paths(
+            'roboto-mono',
+            regular_path=os.path.join(_fonts, 'RobotoMono-Medium.ttf'),
+            bold_path=os.path.join(_fonts, 'RobotoMono-Medium.ttf'),
+        )
         _sizes = sorted({ROW_FONT_SIZE, STATUS_FONT_SIZE, TALKGROUP_FONT_SIZE, CLOCK_FONT_SIZE, TALKGROUP_CALL_FONT_SIZE})
         self._mgr.preload_fonts(
-            [{'name': 'roboto', 'point_size': s, 'style': 'regular'} for s in _sizes] +
-            [{'name': 'roboto', 'point_size': s, 'style': 'bold'}    for s in _sizes]
+            [{'name': 'roboto',      'point_size': s, 'style': 'regular'} for s in _sizes] +
+            [{'name': 'roboto',      'point_size': s, 'style': 'bold'}    for s in _sizes] +
+            [{'name': 'roboto-mono', 'point_size': s, 'style': 'regular'} for s in _sizes]
         )
         self._mgr.get_theme().load_theme(_build_theme(_theme))
 
