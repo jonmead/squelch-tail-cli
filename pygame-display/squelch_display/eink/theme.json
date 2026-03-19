@@ -9,7 +9,7 @@
         },
         "font": {
             "name": "helvetica",
-            "bold": "0"
+            "bold": "1"
         }
     },
     "label": {
@@ -23,17 +23,17 @@
         "font": { "name": "helvetica", "bold": "1" }
     },
     "#appname": {
-        "font": { "name": "helvetica", "bold": "0" },
+        "font": { "name": "helvetica", "bold": "1" },
         "misc": { "text_horiz_alignment": "right" }
     },
     "#talkgroup": {
-        "font": { "name": "helvetica", "bold": "1" }
+        "font": { "name": "sen", "bold": "1" }
     },
     "#talkgroup-call": {
-        "font": { "name": "helvetica", "bold": "1" }
+        "font": { "name": "sen", "bold": "1" }
     },
     "#clock": {
-        "font": { "name": "helvetica", "bold": "1" },
+        "font": { "name": "sen", "bold": "1" },
         "misc": {
             "text_horiz_alignment":         "center",
             "text_vert_alignment":          "center",
@@ -41,7 +41,7 @@
         }
     },
     "#freq": {
-        "font": { "name": "helvetica", "bold": "0" },
+        "font": { "name": "helvetica", "bold": "1" },
         "misc": {
             "text_horiz_alignment":         "right",
             "text_vert_alignment":          "center",
