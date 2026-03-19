@@ -326,12 +326,20 @@ class EinkApp:
             raw = pygame.image.tostring(self._surf, 'RGB')
             img = Image.frombytes('RGB', (W, H), raw).convert('1')
             buf = self._epd.getbuffer(img)
-            if self._full_refresh and not self.ipc.has_pending():
+            if self._full_refresh:
                 self._epd.init_fast()
                 self._epd.displayPartBaseImage(buf)
                 self._full_refresh = False
             else:
                 self._epd.displayPartial(buf)
+                # Sync the base-image register (0x26) to what is now physically
+                # displayed.  displayPartial only writes 0x24; without this the
+                # next partial diff is always 0x24-new vs 0x26-stale-base, which
+                # produces no visible change when returning to the standby screen
+                # (both sides happen to equal the original base image).
+                self._epd.SetCursor(0, 0)
+                self._epd.send_command(0x26)
+                self._epd.send_data2(buf)
         except Exception as exc:
             print(f'[eink] Push error: {exc}', file=sys.stderr)
 
