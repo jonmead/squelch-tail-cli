@@ -22,6 +22,9 @@ from .layout import (
     TALKGROUP_CALL_HEIGHT, TALKGROUP_CALL_FONT_SIZE,
 )
 
+# Full refresh (displayPartBaseImage) every N seconds to clear ghosting.
+_FULL_REFRESH_INTERVAL = 60.0
+
 
 def _build_theme(theme_path: str) -> io.StringIO:
     """Load theme.json and inject computed font sizes from layout.py."""
@@ -39,17 +42,15 @@ def _build_theme(theme_path: str) -> io.StringIO:
 
 class EinkApp:
     def __init__(self, width=250, height=122, test=False):
-        self.test    = test
-        self.state   = DisplayState()
-        self.ipc     = IpcReader()
-        self._volume        = 100
-        self._running       = True
-        self._dirty         = True   # force first paint
-        self._screen_in_call = False  # what is currently shown on the hardware
-        self._epd           = None
-        self._touch_reader  = None
-        self._last_time_str = ''
-        self._full_refresh  = True   # True → displayPartBaseImage, False → displayPartial
+        self.test  = test
+        self.state = DisplayState()
+        self.ipc   = IpcReader()
+
+        self._volume           = 100
+        self._running          = True
+        self._epd              = None
+        self._touch_reader     = None
+        self._last_full_refresh = 0.0  # time.time() of last displayPartBaseImage
 
     # ── Entry point ───────────────────────────────────────────────────────────
 
@@ -62,6 +63,7 @@ class EinkApp:
         clock = pygame.time.Clock()
 
         while self._running:
+            # Process all pending IPC messages before rendering.
             for msg in self.ipc.poll():
                 if msg.get('type') == 'quit':
                     self._running = False
@@ -69,26 +71,11 @@ class EinkApp:
                 elif msg.get('type') == 'state':
                     self.state.update(msg)
 
-            # Determine whether the hardware display needs updating.
-            # Only four events warrant a refresh:
-            #   1. A call is playing but the screen still shows standby.
-            #   2. A call ended but the screen still shows the call.
-            #   3. Standby is active and the clock minute has changed.
-            #   4. A touch event (volume / pause) set _dirty directly.
-            now_in_call = bool(self.state.call)
-            if now_in_call != self._screen_in_call:
-                reason = 'call-start' if now_in_call else 'call-end'
-                print(f'[eink] dirty: {reason}', file=sys.stderr, flush=True)
-                self._dirty = True
-                self._full_refresh = False  # partial is fast enough for call transitions
-            elif not now_in_call:
-                now_min = datetime.datetime.now().strftime('%H:%M')
-                if now_min != self._last_time_str:
-                    print(f'[eink] dirty: minute-tick {now_min}', file=sys.stderr, flush=True)
-                    self._dirty = True
-                    self._full_refresh = True  # full refresh cleans ghosting each minute
+            if not self._running:
+                break
 
             if self.test:
+                # Test mode: pygame window at ~20 fps, no hardware I/O.
                 dt = clock.tick(20) / 1000.0
                 for ev in pygame.event.get():
                     if ev.type == pygame.QUIT:
@@ -98,17 +85,27 @@ class EinkApp:
                     elif ev.type == pygame.MOUSEBUTTONDOWN:
                         self._on_touch(*ev.pos)
                 self._mgr.update(dt)
-                self._render_and_push()
-            elif self._dirty:
-                self._mgr.update(1 / 20)
-                self._render_and_push()
-                self._screen_in_call = now_in_call
-                if not now_in_call:
-                    self._last_time_str = datetime.datetime.now().strftime('%H:%M')
-                self._dirty = False
-                time.sleep(0.05)
+                self._render_and_push(full=False)
             else:
-                time.sleep(0.05)
+                # Production mode: mirror the Waveshare sample — run
+                # displayPartial() in a continuous loop, exactly like the
+                # sample calls it in a tight loop after displayPartBaseImage().
+                # Keeping the controller exercised this way avoids the idle-gap
+                # problem where a long pause after a full refresh leaves the
+                # controller in a state that makes the next partial hang.
+                #
+                # displayPartBaseImage() (~2-3 s) is called once at startup
+                # and then every _FULL_REFRESH_INTERVAL seconds to clear
+                # ghosting and reset the 0x26 base register.
+                #
+                # displayPartial() (~0.3 s) handles all other frames and
+                # naturally paces the loop — no sleep needed.
+                now = time.time()
+                full = (now - self._last_full_refresh) >= _FULL_REFRESH_INTERVAL
+                self._mgr.update(1 / 20)
+                self._render_and_push(full=full)
+                if full:
+                    self._last_full_refresh = time.time()
 
         self._cleanup()
 
@@ -277,13 +274,12 @@ class EinkApp:
             self._lbl['appname'].hide()
             self._lbl['clock'].set_text('')
         else:
-            self._last_time_str = datetime.datetime.now().strftime('%H:%M')
             self._lbl['tg_call'].hide()
             self._lbl['tg'].set_text('')
             self._lbl['tg'].show()
             self._lbl['status'].show()
             self._lbl['appname'].show()
-            self._lbl['clock'].set_text(self._last_time_str)
+            self._lbl['clock'].set_text(datetime.datetime.now().strftime('%H:%M'))
             sys_l = freq = units = ''
 
         self._lbl['sys_info'].set_text(sys_l)
@@ -291,7 +287,7 @@ class EinkApp:
         self._lbl['units'].set_text(units)
         self._lbl['vol'].set_text(f'VOL {self._volume}%')
 
-    def _render_and_push(self) -> None:
+    def _render_and_push(self, full: bool = False) -> None:
         self._update_labels()
         self._surf.fill(WHITE)
         self._mgr.draw_ui(self._surf)
@@ -320,46 +316,22 @@ class EinkApp:
             img = Image.frombytes('RGB', (W, H), raw).convert('1')
             buf = self._epd.getbuffer(img)
             t0 = time.time()
-            if self._full_refresh:
-                # Full refresh: writes buf to both 0x24 and 0x26, slow waveform
-                # (~2-3 s).  Used for first paint and each minute-tick.
+            if full:
+                # Full refresh: sets both 0x24 and 0x26 to buf, applies slow
+                # waveform (~2-3 s).  Clears ghosting and re-establishes the
+                # base image for subsequent partial diffs.
                 self._epd.displayPartBaseImage(buf)
-                self._full_refresh = False
                 print(f'[eink] full refresh done in {time.time()-t0:.2f}s', file=sys.stderr, flush=True)
             else:
-                # Partial refresh.
-                #
-                # displayPartial() uses only a 1 ms reset pulse with no
-                # ReadBusy() — sufficient in a tight loop but not after the
-                # controller has been idle for minutes following a full refresh.
-                # The controller sits in an undefined post-refresh state; that
-                # brief pulse doesn't clear it, so TurnOnDisplayPart() →
-                # ReadBusy() never sees BUSY go low and hangs indefinitely.
-                #
-                # Fix: call init() first (full 20 ms reset + SWRESET + ReadBusy)
-                # to bring the controller to a clean known state, then set only
-                # the register that differs from init (0x3C BorderWaveform:
-                # init uses 0x05, partial refresh needs 0x80), write the image,
-                # and trigger the partial update waveform.
-                #
-                # RAM (0x24, 0x26) is preserved through init() — hardware/soft
-                # reset only resets registers, not RAM content.
-                self._epd.init()
-                # Switch BorderWaveform from init's 0x05 to 0x80 (partial mode)
-                self._epd.send_command(0x3C)
-                self._epd.send_data(0x80)
-                # Write new frame to display RAM
-                self._epd.SetCursor(0, 0)
-                self._epd.send_command(0x24)
-                self._epd.send_data2(buf)
-                # Trigger partial update (0xFF OTP LUT, ~0.3 s)
-                self._epd.TurnOnDisplayPart()
-                # Sync base register so next partial diff is against the
-                # current screen state, not the original full-refresh image.
+                # Partial refresh: write new frame to 0x24, diff against 0x26,
+                # apply fast waveform (~0.3 s).  Then sync 0x26 to the current
+                # screen so the next partial diff is always against what is
+                # physically showing.
+                self._epd.displayPartial(buf)
                 self._epd.SetCursor(0, 0)
                 self._epd.send_command(0x26)
                 self._epd.send_data2(buf)
-                print(f'[eink] partial refresh done in {time.time()-t0:.2f}s', file=sys.stderr, flush=True)
+                print(f'[eink] partial done in {time.time()-t0:.2f}s', file=sys.stderr, flush=True)
         except Exception as exc:
             print(f'[eink] Push error: {exc}', file=sys.stderr)
 
@@ -373,4 +345,3 @@ class EinkApp:
         else:
             self.state.paused = not self.state.paused  # optimistic: show change before CLI round-trip
             send_command({'type': 'pause'})
-        self._dirty = True
