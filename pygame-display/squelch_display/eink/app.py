@@ -331,5 +331,10 @@ class EinkApp:
             set_pulse_volume(self._volume)
             send_command({'type': 'volume', 'value': self._volume})
         else:
-            self.state.paused = not self.state.paused  # optimistic: show change before CLI round-trip
+            # Optimistically flip paused state so the display updates immediately.
+            self.state.paused = not self.state.paused
+            # If a call is currently playing, skip it (interrupt immediately)
+            # before toggling pause so the queue doesn't start the next call.
+            if self.state.call:
+                send_command({'type': 'skip'})
             send_command({'type': 'pause'})
