@@ -178,8 +178,8 @@ class EinkApp:
         self._mgr = pygame_gui.UIManager((W, H))
         self._mgr.add_font_paths(
             'helvetica',
-            regular_path=os.path.join(_fonts, 'texgyreheros-regular.otf'),
-            bold_path=os.path.join(_fonts, 'texgyreheros-bold.otf'),
+            regular_path=os.path.join(_fonts, 'Helvetica.ttf'),
+            bold_path=os.path.join(_fonts, 'Helvetica-Bold.ttf'),
         )
         _sizes = sorted({ROW_FONT_SIZE, STATUS_FONT_SIZE, TALKGROUP_FONT_SIZE, CLOCK_FONT_SIZE, TALKGROUP_CALL_FONT_SIZE})
         self._mgr.preload_fonts(
