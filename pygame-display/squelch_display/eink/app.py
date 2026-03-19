@@ -115,11 +115,8 @@ class EinkApp:
         try:
             from waveshare_epd import epd2in13_V4 as mod
             self._epd = mod.EPD()
-            print('[eink] init...', file=sys.stderr, flush=True)
-            t0 = time.time()
             self._epd.init()
             self._epd.Clear(0xFF)
-            print(f'[eink] init done in {time.time()-t0:.2f}s', file=sys.stderr, flush=True)
         except ImportError:
             print('[eink] waveshare_epd not installed — simulation mode', file=sys.stderr)
         except Exception as exc:
@@ -315,13 +312,11 @@ class EinkApp:
             raw = pygame.image.tostring(self._surf, 'RGB')
             img = Image.frombytes('RGB', (W, H), raw).convert('1')
             buf = self._epd.getbuffer(img)
-            t0 = time.time()
             if full:
                 # Full refresh: sets both 0x24 and 0x26 to buf, applies slow
                 # waveform (~2-3 s).  Clears ghosting and re-establishes the
                 # base image for subsequent partial diffs.
                 self._epd.displayPartBaseImage(buf)
-                print(f'[eink] full refresh done in {time.time()-t0:.2f}s', file=sys.stderr, flush=True)
             else:
                 # Partial refresh: write new frame to 0x24, diff against 0x26,
                 # apply fast waveform (~0.3 s).  Then sync 0x26 to the current
@@ -331,7 +326,6 @@ class EinkApp:
                 self._epd.SetCursor(0, 0)
                 self._epd.send_command(0x26)
                 self._epd.send_data2(buf)
-                print(f'[eink] partial done in {time.time()-t0:.2f}s', file=sys.stderr, flush=True)
         except Exception as exc:
             print(f'[eink] Push error: {exc}', file=sys.stderr)
 
