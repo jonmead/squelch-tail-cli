@@ -49,6 +49,7 @@ class EinkApp:
         self._epd           = None
         self._touch_reader  = None
         self._last_time_str = ''
+        self._full_refresh  = True   # True → displayPartBaseImage, False → displayPartial
 
     # ── Entry point ───────────────────────────────────────────────────────────
 
@@ -79,11 +80,13 @@ class EinkApp:
                 reason = 'call-start' if now_in_call else 'call-end'
                 print(f'[eink] dirty: {reason}', file=sys.stderr, flush=True)
                 self._dirty = True
+                self._full_refresh = False  # partial is fast enough for call transitions
             elif not now_in_call:
                 now_min = datetime.datetime.now().strftime('%H:%M')
                 if now_min != self._last_time_str:
                     print(f'[eink] dirty: minute-tick {now_min}', file=sys.stderr, flush=True)
                     self._dirty = True
+                    self._full_refresh = True  # full refresh cleans ghosting each minute
 
             if self.test:
                 dt = clock.tick(20) / 1000.0
@@ -119,10 +122,6 @@ class EinkApp:
             t0 = time.time()
             self._epd.init()
             self._epd.Clear(0xFF)
-            # Switch to fast-refresh mode once at startup so each subsequent
-            # display_fast() call only needs to write data + TurnOnDisplay_Fast,
-            # without repeating the slow temperature-load sequence.
-            self._epd.init_fast()
             print(f'[eink] init done in {time.time()-t0:.2f}s', file=sys.stderr, flush=True)
         except ImportError:
             print('[eink] waveshare_epd not installed — simulation mode', file=sys.stderr)
@@ -320,12 +319,23 @@ class EinkApp:
             raw = pygame.image.tostring(self._surf, 'RGB')
             img = Image.frombytes('RGB', (W, H), raw).convert('1')
             buf = self._epd.getbuffer(img)
-            # init_fast() was called once at startup; here we only need to
-            # reset the RAM cursor and push the new image.
             t0 = time.time()
-            self._epd.SetCursor(0, 0)
-            self._epd.display_fast(buf)
-            print(f'[eink] display_fast done in {time.time()-t0:.2f}s', file=sys.stderr, flush=True)
+            if self._full_refresh:
+                # Full refresh: writes buf to both 0x24 (new) and 0x26 (base),
+                # then triggers a slow full waveform (~2-3 s).  Used for the
+                # first paint and each minute-tick to eliminate ghosting.
+                self._epd.displayPartBaseImage(buf)
+                self._full_refresh = False
+                print(f'[eink] displayPartBaseImage done in {time.time()-t0:.2f}s', file=sys.stderr, flush=True)
+            else:
+                # Partial refresh: writes buf to 0x24 only, diffs against 0x26,
+                # triggers fast waveform (~0.3 s).  Then we update 0x26 to the
+                # current image so the next partial diff is always correct.
+                self._epd.displayPartial(buf)
+                self._epd.SetCursor(0, 0)
+                self._epd.send_command(0x26)
+                self._epd.send_data2(buf)
+                print(f'[eink] displayPartial done in {time.time()-t0:.2f}s', file=sys.stderr, flush=True)
         except Exception as exc:
             print(f'[eink] Push error: {exc}', file=sys.stderr)
 
