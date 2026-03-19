@@ -36,7 +36,9 @@ def _build_theme(theme_path: str) -> io.StringIO:
     theme.setdefault('#talkgroup',      {}).setdefault('font', {})['size'] = str(TALKGROUP_FONT_SIZE)
     theme.setdefault('#talkgroup-call', {}).setdefault('font', {})['size'] = str(TALKGROUP_CALL_FONT_SIZE)
     theme.setdefault('#clock',          {}).setdefault('font', {})['size'] = str(CLOCK_FONT_SIZE)
+    theme.setdefault('#sys-info',       {}).setdefault('font', {})['size'] = str(ROW_FONT_SIZE)
     theme.setdefault('#freq',           {}).setdefault('font', {})['size'] = str(ROW_FONT_SIZE)
+    theme.setdefault('#volume',         {}).setdefault('font', {})['size'] = str(ROW_FONT_SIZE)
     return io.StringIO(json.dumps(theme))
 
 
@@ -256,7 +258,7 @@ class EinkApp:
         if s.call:
             tg    = s.call.tgLabel or str(s.call.talkgroupId)
             sys_l = s.call.systemLabel or f'Sys {s.call.systemId}'
-            freq  = f'{s.call.freq / 1_000_000:.4f} MHz' if s.call.freq else ''
+            freq  = f'{s.call.freq / 1_000_000:.4f}MHz' if s.call.freq else ''
             seen, parts = set(), []
             for u in (s.call.units or []):
                 key = u.tag if u.unitId == -1 else u.unitId
