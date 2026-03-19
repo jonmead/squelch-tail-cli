@@ -8,7 +8,7 @@
             "selected_text": "#000000"
         },
         "font": {
-            "name": "caskaydia-propo",
+            "name": "helvetica",
             "bold": "0"
         }
     },
@@ -20,20 +20,20 @@
         }
     },
     "#status": {
-        "font": { "name": "caskaydia-propo", "bold": "1" }
+        "font": { "name": "helvetica", "bold": "1" }
     },
     "#appname": {
-        "font": { "name": "caskaydia-propo", "bold": "0" },
+        "font": { "name": "helvetica", "bold": "0" },
         "misc": { "text_horiz_alignment": "right" }
     },
     "#talkgroup": {
-        "font": { "name": "caskaydia-propo", "bold": "1" }
+        "font": { "name": "helvetica", "bold": "1" }
     },
     "#talkgroup-call": {
-        "font": { "name": "caskaydia-propo", "bold": "1" }
+        "font": { "name": "helvetica", "bold": "1" }
     },
     "#clock": {
-        "font": { "name": "caskaydia-propo", "bold": "1" },
+        "font": { "name": "helvetica", "bold": "1" },
         "misc": {
             "text_horiz_alignment":         "center",
             "text_vert_alignment":          "center",
@@ -41,7 +41,7 @@
         }
     },
     "#freq": {
-        "font": { "name": "caskaydia-mono", "bold": "0" },
+        "font": { "name": "helvetica", "bold": "0" },
         "misc": {
             "text_horiz_alignment":         "right",
             "text_vert_alignment":          "center",
