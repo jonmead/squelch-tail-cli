@@ -321,21 +321,45 @@ class EinkApp:
             buf = self._epd.getbuffer(img)
             t0 = time.time()
             if self._full_refresh:
-                # Full refresh: writes buf to both 0x24 (new) and 0x26 (base),
-                # then triggers a slow full waveform (~2-3 s).  Used for the
-                # first paint and each minute-tick to eliminate ghosting.
+                # Full refresh: writes buf to both 0x24 and 0x26, slow waveform
+                # (~2-3 s).  Used for first paint and each minute-tick.
                 self._epd.displayPartBaseImage(buf)
                 self._full_refresh = False
-                print(f'[eink] displayPartBaseImage done in {time.time()-t0:.2f}s', file=sys.stderr, flush=True)
+                print(f'[eink] full refresh done in {time.time()-t0:.2f}s', file=sys.stderr, flush=True)
             else:
-                # Partial refresh: writes buf to 0x24 only, diffs against 0x26,
-                # triggers fast waveform (~0.3 s).  Then we update 0x26 to the
-                # current image so the next partial diff is always correct.
-                self._epd.displayPartial(buf)
+                # Partial refresh.
+                #
+                # displayPartial() uses only a 1 ms reset pulse with no
+                # ReadBusy() — sufficient in a tight loop but not after the
+                # controller has been idle for minutes following a full refresh.
+                # The controller sits in an undefined post-refresh state; that
+                # brief pulse doesn't clear it, so TurnOnDisplayPart() →
+                # ReadBusy() never sees BUSY go low and hangs indefinitely.
+                #
+                # Fix: call init() first (full 20 ms reset + SWRESET + ReadBusy)
+                # to bring the controller to a clean known state, then set only
+                # the register that differs from init (0x3C BorderWaveform:
+                # init uses 0x05, partial refresh needs 0x80), write the image,
+                # and trigger the partial update waveform.
+                #
+                # RAM (0x24, 0x26) is preserved through init() — hardware/soft
+                # reset only resets registers, not RAM content.
+                self._epd.init()
+                # Switch BorderWaveform from init's 0x05 to 0x80 (partial mode)
+                self._epd.send_command(0x3C)
+                self._epd.send_data(0x80)
+                # Write new frame to display RAM
+                self._epd.SetCursor(0, 0)
+                self._epd.send_command(0x24)
+                self._epd.send_data2(buf)
+                # Trigger partial update (0xFF OTP LUT, ~0.3 s)
+                self._epd.TurnOnDisplayPart()
+                # Sync base register so next partial diff is against the
+                # current screen state, not the original full-refresh image.
                 self._epd.SetCursor(0, 0)
                 self._epd.send_command(0x26)
                 self._epd.send_data2(buf)
-                print(f'[eink] displayPartial done in {time.time()-t0:.2f}s', file=sys.stderr, flush=True)
+                print(f'[eink] partial refresh done in {time.time()-t0:.2f}s', file=sys.stderr, flush=True)
         except Exception as exc:
             print(f'[eink] Push error: {exc}', file=sys.stderr)
 
