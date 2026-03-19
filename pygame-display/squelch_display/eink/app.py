@@ -76,11 +76,14 @@ class EinkApp:
             #   4. A touch event (volume / pause) set _dirty directly.
             now_in_call = bool(self.state.call)
             if now_in_call != self._screen_in_call:
-                self._dirty = True          # call started or ended
+                reason = 'call-start' if now_in_call else 'call-end'
+                print(f'[eink] dirty: {reason}', file=sys.stderr, flush=True)
+                self._dirty = True
             elif not now_in_call:
                 now_min = datetime.datetime.now().strftime('%H:%M')
                 if now_min != self._last_time_str:
-                    self._dirty = True      # clock minute changed
+                    print(f'[eink] dirty: minute-tick {now_min}', file=sys.stderr, flush=True)
+                    self._dirty = True
 
             if self.test:
                 dt = clock.tick(20) / 1000.0
@@ -112,8 +115,15 @@ class EinkApp:
         try:
             from waveshare_epd import epd2in13_V4 as mod
             self._epd = mod.EPD()
+            print('[eink] init...', file=sys.stderr, flush=True)
+            t0 = time.time()
             self._epd.init()
             self._epd.Clear(0xFF)
+            # Switch to fast-refresh mode once at startup so each subsequent
+            # display_fast() call only needs to write data + TurnOnDisplay_Fast,
+            # without repeating the slow temperature-load sequence.
+            self._epd.init_fast()
+            print(f'[eink] init done in {time.time()-t0:.2f}s', file=sys.stderr, flush=True)
         except ImportError:
             print('[eink] waveshare_epd not installed — simulation mode', file=sys.stderr)
         except Exception as exc:
@@ -310,8 +320,12 @@ class EinkApp:
             raw = pygame.image.tostring(self._surf, 'RGB')
             img = Image.frombytes('RGB', (W, H), raw).convert('1')
             buf = self._epd.getbuffer(img)
-            self._epd.init_fast()
+            # init_fast() was called once at startup; here we only need to
+            # reset the RAM cursor and push the new image.
+            t0 = time.time()
+            self._epd.SetCursor(0, 0)
             self._epd.display_fast(buf)
+            print(f'[eink] display_fast done in {time.time()-t0:.2f}s', file=sys.stderr, flush=True)
         except Exception as exc:
             print(f'[eink] Push error: {exc}', file=sys.stderr)
 
