@@ -328,6 +328,7 @@ class EinkApp:
                 self._epd.SetCursor(0, 0)
                 self._epd.send_command(0x26)
                 self._epd.send_data2(buf)
+                time.sleep(.4)
         except Exception as exc:
             print(f'[eink] Push error: {exc}', file=sys.stderr)
 
