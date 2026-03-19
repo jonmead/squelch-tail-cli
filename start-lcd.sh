@@ -25,8 +25,10 @@ fi
 # Ensure the Python venv and all dependencies are ready
 "$SCRIPT_DIR/pygame-display/ensure-venv.sh"
 
-# Default SDL driver for Pi GPIO LCD (kmsdrm). Override via env if needed.
-export SDL_VIDEODRIVER="${SDL_VIDEODRIVER:-kmsdrm}"
+# SDL driver is selected automatically by the Python app:
+#   /dev/fb1 present  → offscreen rendering flushed to framebuffer (GPIO LCD HATs)
+#   /dev/fb1 absent   → kmsdrm (HDMI / KMS display)
+# Override by setting SDL_VIDEODRIVER in the environment before calling this script.
 export SDL_VIDEO_HIGHDPI_DISABLED=1
 export SDL_AUDIODRIVER="${SDL_AUDIODRIVER:-dummy}"
 

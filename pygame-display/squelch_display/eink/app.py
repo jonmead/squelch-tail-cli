@@ -328,7 +328,7 @@ class EinkApp:
                 self._epd.SetCursor(0, 0)
                 self._epd.send_command(0x26)
                 self._epd.send_data2(buf)
-                time.sleep(.4)
+                time.sleep(.4) #ease up on the refresh times to extend the eink screen
         except Exception as exc:
             print(f'[eink] Push error: {exc}', file=sys.stderr)
 

@@ -279,8 +279,34 @@ if [[ "$DISPLAY_TYPE" == "eink" ]]; then
         fi
     fi
 else
-    step "Step 6: Waveshare e-Paper Library (Skipped — LCD mode)"
-    ok "Not required for LCD display mode"
+    step "Step 6: LCD Display Overlay"
+
+    CONFIG_FILE="/boot/firmware/config.txt"
+    OVERLAY_LINE="dtoverlay=piscreen,speed=16000000,rotate=270"
+
+    if [[ ! -f "$CONFIG_FILE" ]]; then
+        warn "${CONFIG_FILE} not found — skipping LCD overlay setup."
+    elif grep -qF "$OVERLAY_LINE" "$CONFIG_FILE" 2>/dev/null; then
+        ok "LCD overlay already present in ${CONFIG_FILE}"
+    else
+        echo "  The ILI9486 GPIO LCD HAT requires the 'piscreen' device tree overlay."
+        echo "  This adds the following line to ${CONFIG_FILE}:"
+        echo "    ${OVERLAY_LINE}"
+        echo ""
+        echo "  If you are using a different LCD HAT, answer N and add the correct"
+        echo "  overlay manually. See HARDWARE_SETUP.md Section 6.2."
+        echo ""
+        if ask_yes_no "Add LCD overlay to ${CONFIG_FILE}?"; then
+            if sudo bash -c "echo '${OVERLAY_LINE}' >> ${CONFIG_FILE}"; then
+                ok "Added LCD overlay to ${CONFIG_FILE}"
+                SPI_JUST_ENABLED=true   # reuse reboot flag
+            else
+                err "Failed to write to ${CONFIG_FILE}. Add the overlay manually."
+            fi
+        else
+            warn "Skipped — add the overlay manually before the display will work."
+        fi
+    fi
 fi
 
 # ---------------------------------------------------------------------------

@@ -30,7 +30,7 @@
         "font": { "name": "roboto", "bold": "0" }
     },
     "#talkgroup-call": {
-        "font": { "name": "roboto-mono", "bold": "0" }
+        "font": { "name": "roboto", "bold": "0" }
     },
     "#clock": {
         "font": { "name": "roboto", "bold": "1" },

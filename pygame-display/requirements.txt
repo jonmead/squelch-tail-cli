@@ -8,6 +8,9 @@ pygame-gui>=0.6.0
 # Required for e-ink mode (Waveshare 2.13" driver converts pygame surface → PIL)
 Pillow>=9.0.0
 
+# Pixel array conversion for direct framebuffer rendering (LCD mode, /dev/fb1)
+numpy>=1.24.0
+
 # I2C communication for GT1151 touch controller (Waveshare 2.13" Touch HAT)
 smbus2>=0.4.0
 

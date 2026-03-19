@@ -246,32 +246,46 @@ A 480×320 colour LCD HAT (e.g. Waveshare 3.5" or a compatible GPIO LCD). The HA
 
 ### 6.2 Display Driver / Overlay
 
-Most GPIO LCD HATs require a device tree overlay to be enabled. Check your specific HAT's documentation.
+GPIO LCD HATs require a device tree overlay to enable the SPI framebuffer driver. Add the appropriate overlay to `/boot/firmware/config.txt` and reboot.
 
-Common overlays:
-- `dtoverlay=piscreen` — PiScreen and compatible
+**ILI9486-based 3.5" HATs** (e.g. lcdwiki, Waveshare 3.5" Rev2.1, and most compatible 480×320 HATs):
+```
+dtoverlay=piscreen,speed=16000000,rotate=270
+```
+
+The `rotate=270` value produces the correct landscape orientation for this HAT. If your image appears rotated, try `rotate=0`, `90`, or `180`.
+
+After adding the overlay and rebooting, verify the framebuffer device exists:
+```bash
+ls /dev/fb1
+# Should show: /dev/fb1
+```
+
+Other common overlays:
+- `dtoverlay=piscreen2r` — alternative piscreen variant (try if `piscreen` does not work)
 - Manufacturer-specific overlays — check the HAT's wiki or GitHub page
-
-Add the appropriate overlay to `/boot/firmware/config.txt` and reboot.
 
 **HDMI-connected LCD displays** (those that present as a standard HDMI monitor) do not need a dtoverlay.
 
 ### 6.3 SDL Display Driver
 
-pygame uses SDL under the hood. You need to tell SDL which framebuffer or display system to use:
+The app detects your display hardware automatically and selects the correct rendering path:
 
-**Framebuffer-based LCD (most GPIO HATs):**
+| Hardware | `/dev/fb1` present? | Rendering method |
+|----------|--------------------|-----------------------------------------|
+| GPIO LCD HAT (fbtft) | Yes | Offscreen SDL surface flushed to `/dev/fb1` via mmap |
+| HDMI / KMS display | No | `SDL_VIDEODRIVER=kmsdrm` |
+
+> **Why not `SDL_VIDEODRIVER=fbcon`?** SDL2 on modern Raspberry Pi OS (Bookworm/Trixie) is built without fbcon support. The app works around this by rendering to an offscreen surface and writing each frame directly to the framebuffer as RGB565.
+
+No manual `SDL_VIDEODRIVER` configuration is needed. To override, set it in your environment before running `start-lcd.sh`:
 ```bash
-export SDL_VIDEODRIVER=fbcon
-export SDL_FBDEV=/dev/fb1    # or /dev/fb0 if it is the primary framebuffer
-```
+# Force KMS/DRM (e.g. HDMI monitor with no HAT):
+SDL_VIDEODRIVER=kmsdrm ./start-lcd.sh ws://...
 
-**KMS/DRM-based display:**
-```bash
-export SDL_VIDEODRIVER=kmsdrm
+# Force a different framebuffer device:
+SDL_FBDEV=/dev/fb0 ./start-lcd.sh ws://...
 ```
-
-The `start-lcd.sh` script sets `SDL_VIDEODRIVER=kmsdrm` by default. If your display uses a framebuffer (`fbcon`), edit `start-lcd.sh` and adjust the `SDL_VIDEODRIVER` and `SDL_FBDEV` values accordingly.
 
 ### 6.4 Touch Input
 
@@ -315,8 +329,8 @@ The same `pygame-display/ensure-venv.sh` is used for LCD mode. No Waveshare libr
 | `SQUELCH_DISPLAY_PYTHON` | `python3` | Path to the Python binary to use |
 | `SQUELCH_DISPLAY_EXTRA` | _(empty)_ | Extra argument string passed to the display process |
 | `SQUELCH_DISPLAY_TEST` | unset | Set to `1` to open a desktop window instead of driving hardware |
-| `SDL_VIDEODRIVER` | `kmsdrm` | SDL video driver (`kmsdrm` or `fbcon`) — set in `start-lcd.sh` |
-| `SDL_FBDEV` | unset | Framebuffer device (e.g. `/dev/fb1`) — only needed when `SDL_VIDEODRIVER=fbcon` |
+| `SDL_VIDEODRIVER` | auto | Override SDL video driver. Auto-detected: `offscreen` when `/dev/fb1` exists, `kmsdrm` otherwise |
+| `SDL_FBDEV` | `/dev/fb1` | Framebuffer device path for GPIO LCD HAT rendering |
 
 ---
 
@@ -487,6 +501,35 @@ Node.js was installed via nvm and is not in the system PATH. The launcher script
 
 The application is not set to autostart. Follow the systemd instructions in Section 8, or run the launcher script manually after each boot.
 
+### LCD screen is blank / `video system not initialized`
+
+**1. Check that the fbtft overlay is loaded and `/dev/fb1` exists:**
+```bash
+ls /dev/fb1
+dmesg | grep fb_ili9486
+```
+If `/dev/fb1` is missing, the dtoverlay was not added or the reboot did not complete. Add `dtoverlay=piscreen,speed=16000000,rotate=270` to `/boot/firmware/config.txt` and reboot (see Section 6.2).
+
+**2. Check that the user has access to the framebuffer:**
+```bash
+groups   # should include 'video'
+ls -la /dev/fb1   # should be group 'video', mode crw-rw----
+```
+If not in the `video` group: `sudo usermod -aG video $USER` then log out and back in.
+
+**3. Verify the venv was rebuilt after adding numpy:**
+```bash
+/path/to/.venv-pygame-display/bin/python3 -c "import numpy; print('ok')"
+```
+If that fails: `rm -rf pygame-display/.venv-pygame-display && bash pygame-display/ensure-venv.sh`
+
 ### SDL / pygame fails to open the display (LCD mode)
 
-Check that `SDL_VIDEODRIVER` is set correctly for your display hardware. See Section 6.3. A common error is `SDL_VIDEODRIVER=kmsdrm` being set when the display uses a framebuffer — in that case, set `SDL_VIDEODRIVER=fbcon` and `SDL_FBDEV=/dev/fb1` (or `/dev/fb0`) in `start-lcd.sh`.
+The app auto-detects the rendering method (see Section 6.3). If you need to force a specific driver:
+```bash
+# GPIO HAT with framebuffer on /dev/fb0 instead of /dev/fb1:
+SDL_FBDEV=/dev/fb0 ./start-lcd.sh ws://...
+
+# HDMI display / no HAT:
+SDL_VIDEODRIVER=kmsdrm ./start-lcd.sh ws://...
+```

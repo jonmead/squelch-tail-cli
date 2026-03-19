@@ -20,8 +20,12 @@ Layout (landscape 480×320):
 import datetime
 import io
 import json
+import mmap
 import os
+import struct
+import threading
 
+import numpy as np
 import pygame
 import pygame_gui
 
@@ -51,6 +55,81 @@ from .layout import (
     COLOR_BLUE, COLOR_RED, COLOR_PURPLE,
 )
 
+
+# ── Evdev touch reader ─────────────────────────────────────────────────────
+
+# struct input_event: { timeval (2×int64), type (u16), code (u16), value (i32) }
+_EV_FMT   = 'qqHHi'
+_EV_SIZE  = struct.calcsize(_EV_FMT)
+_EV_SYN, _EV_KEY, _EV_ABS = 0, 1, 3
+_BTN_TOUCH, _ABS_X, _ABS_Y = 330, 0, 1
+
+
+def _run_touch_thread(dev: str, W: int, H: int, stop: list) -> None:
+    """Read ADS7846 evdev events and post pygame mouse events.
+
+    Coordinate mapping is configurable via environment variables for
+    calibration.  Defaults match the piscreen overlay with rotate=270.
+
+    SQUELCH_TOUCH_XMIN / XMAX   raw X range          (default 0 / 4095)
+    SQUELCH_TOUCH_YMIN / YMAX   raw Y range          (default 0 / 4095)
+    SQUELCH_TOUCH_SWAP_XY       swap axes            (default 1)
+    SQUELCH_TOUCH_INVERT_X      invert X after swap  (default 1)
+    SQUELCH_TOUCH_INVERT_Y      invert Y after swap  (default 0)
+    SQUELCH_TOUCH_DEV           evdev path           (default /dev/input/event0)
+    """
+    def _env_bool(key, default):
+        return os.environ.get(key, '1' if default else '0').lower() in ('1', 'true', 'yes')
+
+    xmin = int(os.environ.get('SQUELCH_TOUCH_XMIN', '0'))
+    xmax = int(os.environ.get('SQUELCH_TOUCH_XMAX', '4095'))
+    ymin = int(os.environ.get('SQUELCH_TOUCH_YMIN', '0'))
+    ymax = int(os.environ.get('SQUELCH_TOUCH_YMAX', '4095'))
+    swap = _env_bool('SQUELCH_TOUCH_SWAP_XY',  True)
+    invx = _env_bool('SQUELCH_TOUCH_INVERT_X', True)
+    invy = _env_bool('SQUELCH_TOUCH_INVERT_Y', False)
+
+    def _map(rx, ry):
+        if swap: rx, ry = ry, rx
+        if invx: rx = xmax - (rx - xmin)
+        if invy: ry = ymax - (ry - ymin)
+        sx = max(0, min(W - 1, int((rx - xmin) * W / (xmax - xmin))))
+        sy = max(0, min(H - 1, int((ry - ymin) * H / (ymax - ymin))))
+        return sx, sy
+
+    rx = ry = 0
+    pending_down = pending_up = False
+
+    try:
+        with open(dev, 'rb') as f:
+            while not stop[0]:
+                data = f.read(_EV_SIZE)
+                if len(data) < _EV_SIZE:
+                    break
+                _, _, typ, code, val = struct.unpack(_EV_FMT, data)
+                if typ == _EV_ABS:
+                    if code == _ABS_X: rx = val
+                    elif code == _ABS_Y: ry = val
+                elif typ == _EV_KEY and code == _BTN_TOUCH:
+                    if val: pending_down = True
+                    else:   pending_up   = True
+                elif typ == _EV_SYN and code == 0:
+                    pos = _map(rx, ry)
+                    pygame.event.post(pygame.event.Event(
+                        pygame.MOUSEMOTION, pos=pos, rel=(0, 0), buttons=(0, 0, 0)))
+                    if pending_down:
+                        pygame.event.post(pygame.event.Event(
+                            pygame.MOUSEBUTTONDOWN, pos=pos, button=1))
+                        pending_down = False
+                    if pending_up:
+                        pygame.event.post(pygame.event.Event(
+                            pygame.MOUSEBUTTONUP, pos=pos, button=1))
+                        pending_up = False
+    except Exception:
+        pass
+
+
+# ── Theme builder ──────────────────────────────────────────────────────────
 
 def _build_theme(theme_path: str) -> io.StringIO:
     """Load theme.json and inject computed font sizes from layout.py."""
@@ -110,15 +189,27 @@ class LcdApp:
         self._call_emergency = False
         self._call_encrypted = False
 
+        self._touch_stop   = [False]
+        self._touch_thread = None
+
     # ── Entry point ───────────────────────────────────────────────────────────
 
     def run(self) -> None:
+        self._fb_mm  = None
+        self._fb_fd  = None
+
         if not self.test:
-            # SDL hints for Pi GPIO displays — skipped in test mode
-            os.environ.setdefault('SDL_FBDEV',       '/dev/fb1')
-            os.environ.setdefault('SDL_VIDEODRIVER',  'fbcon')
-            os.environ.setdefault('SDL_MOUSEDRV',     'TSLIB')
-            os.environ.setdefault('TSLIB_FBDEVICE',   '/dev/fb1')
+            # GPIO framebuffer LCDs (e.g. ILI9486 via fbtft) expose /dev/fb1.
+            # SDL2 on modern Pi OS is built without fbcon, so we render offscreen
+            # and flush each frame to the framebuffer as RGB565 via mmap.
+            _fb_dev = os.environ.get('SDL_FBDEV', '/dev/fb1')
+            if os.path.exists(_fb_dev):
+                os.environ.setdefault('SDL_VIDEODRIVER', 'offscreen')
+                self._fb_fd  = open(_fb_dev, 'r+b')
+                self._fb_mm  = mmap.mmap(
+                    self._fb_fd.fileno(), self.W * self.H * 2)
+            else:
+                os.environ.setdefault('SDL_VIDEODRIVER', 'kmsdrm')
 
         os.environ['SDL_VIDEO_HIGHDPI_DISABLED'] = '1'
         os.environ.setdefault('SDL_AUDIODRIVER', 'dummy')
@@ -141,6 +232,16 @@ class LcdApp:
         self._volume = get_pulse_volume()
         self._update_ui()   # set initial label state
 
+        if self.touch and not self.test and self._fb_mm is not None:
+            _dev = os.environ.get('SQUELCH_TOUCH_DEV', '/dev/input/event0')
+            if os.path.exists(_dev):
+                self._touch_thread = threading.Thread(
+                    target=_run_touch_thread,
+                    args=(_dev, self.W, self.H, self._touch_stop),
+                    daemon=True,
+                )
+                self._touch_thread.start()
+
         self.ipc.start()
         clock = pygame.time.Clock()
 
@@ -152,7 +253,14 @@ class LcdApp:
             self._mgr.update(dt)
             self._render()
             pygame.display.flip()
+            self._flush_to_fb()
 
+        self._touch_stop[0] = True
+        if self._touch_thread:
+            self._touch_thread.join(timeout=1.0)
+        if self._fb_mm:
+            self._fb_mm.close()
+            self._fb_fd.close()
         pygame.quit()
 
     # ── Init ──────────────────────────────────────────────────────────────────
@@ -450,6 +558,19 @@ class LcdApp:
             self._lbl_elapsed.set_text(f'{self.state.elapsed:.1f}s')
         else:
             self._lbl_elapsed.set_text('—')
+
+    # ── Framebuffer flush (offscreen → /dev/fb1) ──────────────────────────────
+
+    def _flush_to_fb(self) -> None:
+        if self._fb_mm is None:
+            return
+        px = pygame.surfarray.array3d(self._screen)   # (W, H, 3) uint8
+        r  = (px[:, :, 0].astype(np.uint16) & 0xF8) << 8
+        g  = (px[:, :, 1].astype(np.uint16) & 0xFC) << 3
+        b  =  px[:, :, 2].astype(np.uint16) >> 3
+        rgb565 = (r | g | b).T                        # (H, W) row-major
+        self._fb_mm.seek(0)
+        self._fb_mm.write(rgb565.tobytes())
 
     # ── Rendering ─────────────────────────────────────────────────────────────
 
