@@ -545,7 +545,7 @@ class LcdApp:
         elif s.paused:
             text, new_id = 'Paused',      '#idle-paused'
         else:
-            text, new_id = 'Waiting for calls…', '#idle'
+            text, new_id = datetime.datetime.now().strftime('%H:%M'), '#idle'
 
         if self._idle_id != new_id:
             self._lbl_idle.change_object_id(new_id)
@@ -558,6 +558,8 @@ class LcdApp:
             self._lbl_elapsed.set_text(f'{self.state.elapsed:.1f}s')
         else:
             self._lbl_elapsed.set_text('—')
+        if self._idle_id == '#idle' and self._lbl_idle.visible:
+            self._lbl_idle.set_text(datetime.datetime.now().strftime('%H:%M'))
 
     # ── Framebuffer flush (offscreen → /dev/fb1) ──────────────────────────────
 
